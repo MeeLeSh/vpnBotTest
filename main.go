@@ -194,8 +194,35 @@ func handleSub1WeekTest(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery) 
 		log.Printf("failed to answer callback: %v", err)
 	}
 
+	ctx := context.Background()
+	telegramID := int64(callback.From.ID)
+	username := callback.From.UserName
+	if username == "" {
+		username = fmt.Sprintf("tg-%d", telegramID)
+	}
+
+	user, err := getVpnUserByUsername(ctx, username)
+	if err != nil {
+		log.Printf("failed to get vpn user for test period: %v", err)
+		msg := tgbotapi.NewMessage(callback.Message.Chat.ID, "Something went wrong. Please try again later.")
+		bot.Send(msg)
+		return
+	}
+
+	if user != nil && user.IsUsedTestPeriod {
+		msg := tgbotapi.NewMessage(callback.Message.Chat.ID, "you already used test period")
+		bot.Send(msg)
+		return
+	}
+
+	// apply test period
 	msg := tgbotapi.NewMessage(callback.Message.Chat.ID, "1 week test period is applied")
 	bot.Send(msg)
+
+	// mark test period as used
+	if err := markTestPeriodUsed(ctx, username); err != nil {
+		log.Printf("failed to mark test period used for %s: %v", username, err)
+	}
 }
 
 func handleSub1Month(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery) {

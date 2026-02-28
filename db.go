@@ -51,3 +51,8 @@ func createVpnUser(ctx context.Context, username string, telegramID int64, accou
 	return err
 }
 
+func markTestPeriodUsed(ctx context.Context, username string) error {
+	const query = `UPDATE "VpnUser" SET "isUsedTestPeriod" = TRUE WHERE username = $1`
+	_, err := db.Exec(ctx, query, username)
+	return err
+}
