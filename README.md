@@ -18,7 +18,8 @@ cd m:\programming\projects\customers\vpnBot
 
 ## 2. Start PostgreSQL in Docker
 
-This starts Postgres and runs the DDL script that creates the `VpnUser` table.
+This starts Postgres.
+Database schema is managed by Go migrations in the `migrations/` folder and is applied automatically on app startup.
 
 ```bash
 docker compose up -d
@@ -56,6 +57,8 @@ From the project root:
 ```bash
 go run .
 ```
+
+On startup the app runs DB migrations from `./migrations` (using `DATABASE_URL`).
 
 You should see a log line similar to:
 

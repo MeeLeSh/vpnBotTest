@@ -40,7 +40,26 @@ func generateAccountLink(username string, telegramID int64) string {
 
 	ctx := context.Background()
 
-	resp, err := remnawaveClient.Users().CreateUser(ctx, &remapi.CreateUserRequest{
+	// First, try to get existing user by username
+	getResp, err := remnawaveClient.Users().GetUserByUsername(ctx, username)
+	if err != nil {
+		log.Printf("failed to call Remnawave GetUserByUsername %s: %v", username, err)
+		return ""
+	}
+
+	switch r := getResp.(type) {
+	case *remapi.UserResponse:
+		// User already exists, reuse its subscription URL
+		return r.Response.SubscriptionUrl
+	case *remapi.NotFoundError:
+		// User does not exist, fall through to create
+	default:
+		log.Printf("unexpected GetUserByUsername response type: %T", getResp)
+		return ""
+	}
+
+	// Not found → create a new user
+	createResp, err := remnawaveClient.Users().CreateUser(ctx, &remapi.CreateUserRequest{
 		Username:   username,
 		ExpireAt:   time.Now(),
 		TelegramId: remapi.OptNilInt{Value: int(telegramID), Set: true},
@@ -50,11 +69,11 @@ func generateAccountLink(username string, telegramID int64) string {
 		return ""
 	}
 
-	if created, ok := resp.(*remapi.UserResponse); ok {
+	if created, ok := createResp.(*remapi.UserResponse); ok {
 		return created.Response.SubscriptionUrl
 	}
 
-	log.Printf("unexpected CreateUser response type: %T", resp)
+	log.Printf("unexpected CreateUser response type: %T", createResp)
 	return ""
 }
 

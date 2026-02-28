@@ -16,6 +16,14 @@ func main() {
 		log.Fatal("TELEGRAM_BOT_TOKEN environment variable is not set")
 	}
 
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		log.Fatal("DATABASE_URL environment variable is not set")
+	}
+	if err := runMigrations(dbURL); err != nil {
+		log.Fatalf("failed to run migrations: %v", err)
+	}
+
 	var err error
 	db, err = initDB(context.Background())
 	if err != nil {
@@ -43,11 +51,13 @@ func main() {
 		// Handle callback queries from inline buttons
 		if update.CallbackQuery != nil {
 			switch update.CallbackQuery.Data {
+			case "sub1WeekTest":
+				handleSub1WeekTest(bot, update.CallbackQuery)
 			case "sub1Month":
 				handleSub1Month(bot, update.CallbackQuery)
 			case "sub3Months":
 				handleSub3Months(bot, update.CallbackQuery)
-				continue
+			continue
 			}
 		}
 
@@ -139,10 +149,10 @@ func handleAccountCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 
 	var link string
 
-	if user == nil {
+	if user == nil || user.AccountDetailsLink == "" {
 		link = generateAccountLink(username, telegramID)
-
-		if err := createVpnUser(ctx, username, telegramID, link); err != nil {
+		
+		if err := createVpnUser(ctx, username, telegramID, link, false); err != nil {
 			log.Printf("failed to create vpn user: %v", err)
 			reply := tgbotapi.NewMessage(msg.Chat.ID, "Sorry, something went wrong while creating your account.")
 			bot.Send(reply)
@@ -162,6 +172,9 @@ func handleSubstribeCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 
 	keyboard := tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("1 week test period", "sub1WeekTest"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("1 month (249 rub)", "sub1Month"),
 		),
 		tgbotapi.NewInlineKeyboardRow(
@@ -173,6 +186,16 @@ func handleSubstribeCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	reply.ReplyMarkup = keyboard
 
 	bot.Send(reply)
+}
+
+func handleSub1WeekTest(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery) {
+	answer := tgbotapi.NewCallback(callback.ID, "")
+	if _, err := bot.Request(answer); err != nil {
+		log.Printf("failed to answer callback: %v", err)
+	}
+
+	msg := tgbotapi.NewMessage(callback.Message.Chat.ID, "1 week test period is applied")
+	bot.Send(msg)
 }
 
 func handleSub1Month(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery) {
