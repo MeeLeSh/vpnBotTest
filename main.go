@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -22,6 +23,10 @@ func main() {
 	}
 	defer db.Close()
 
+	if err := initRemnawaveClient(); err != nil {
+		log.Fatalf("failed to init Remnawave client: %v", err)
+	}
+
 	bot, err := tgbotapi.NewBotAPI(token)
 	if err != nil {
 		log.Fatalf("failed to create bot: %v", err)
@@ -35,11 +40,32 @@ func main() {
 	updates := bot.GetUpdatesChan(u)
 
 	for update := range updates {
+		// Handle callback queries from inline buttons
+		if update.CallbackQuery != nil {
+			switch update.CallbackQuery.Data {
+			case "sub1Month":
+				handleSub1Month(bot, update.CallbackQuery)
+			case "sub3Months":
+				handleSub3Months(bot, update.CallbackQuery)
+				continue
+			}
+		}
+
 		if update.Message == nil {
 			continue
 		}
 
-		if update.Message.IsCommand() {
+		// Map button labels to commands so buttons can use friendly names
+		switch update.Message.Text {
+		case "Guide":
+			update.Message.Text = "/instruction"
+		case "Profile":
+			update.Message.Text = "/account"
+		case "Subscription":
+			update.Message.Text = "/substribe"
+		}
+
+		if update.Message.IsCommand() || strings.HasPrefix(update.Message.Text, "/") {
 			handleCommand(bot, update.Message)
 			continue
 		}
@@ -49,7 +75,11 @@ func main() {
 }
 
 func handleCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
-	switch msg.Command() {
+	cmd := msg.Command()
+	if cmd == "" && strings.HasPrefix(msg.Text, "/") {
+		cmd = strings.TrimPrefix(strings.Fields(msg.Text)[0], "/")
+	}
+	switch cmd {
 	case "start":
 		handleStartCommand(bot, msg)
 	case "instruction":
@@ -65,8 +95,19 @@ func handleCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 
 func handleStartCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	text := "Welcome! This bot helps you with VPN and account management.\n" +
-		"For detailed step-by-step instructions, use the /instruction command."
+		"For detailed step-by-step instructions, use the buttons below or type commands."
+
+	keyboard := tgbotapi.NewReplyKeyboard(
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton("Guide"),
+			tgbotapi.NewKeyboardButton("Profile"),
+			tgbotapi.NewKeyboardButton("Subscription"),
+		),
+	)
+
 	reply := tgbotapi.NewMessage(msg.Chat.ID, text)
+	reply.ReplyMarkup = keyboard
+
 	bot.Send(reply)
 }
 
@@ -117,10 +158,41 @@ func handleAccountCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 }
 
 func handleSubstribeCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
-	text := "Subscription payments are not available yet. " +
-		"Please check back later when the payment integration is enabled."
+	text := "Choose a subscription option:"
+
+	keyboard := tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("1 month (249 rub)", "sub1Month"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("3 months (699 rub)", "sub3Months"),
+		),
+	)
+
 	reply := tgbotapi.NewMessage(msg.Chat.ID, text)
+	reply.ReplyMarkup = keyboard
+
 	bot.Send(reply)
+}
+
+func handleSub1Month(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery) {
+	answer := tgbotapi.NewCallback(callback.ID, "")
+	if _, err := bot.Request(answer); err != nil {
+		log.Printf("failed to answer callback: %v", err)
+	}
+
+	msg := tgbotapi.NewMessage(callback.Message.Chat.ID, "subscrubtion 1 is applied")
+	bot.Send(msg)
+}
+
+func handleSub3Months(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery) {
+	answer := tgbotapi.NewCallback(callback.ID, "")
+	if _, err := bot.Request(answer); err != nil {
+		log.Printf("failed to answer callback: %v", err)
+	}
+
+	msg := tgbotapi.NewMessage(callback.Message.Chat.ID, "subscrubtion 3 is applied")
+	bot.Send(msg)
 }
 
 func handleUnknownCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
@@ -129,7 +201,6 @@ func handleUnknownCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 }
 
 func handleMessage(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
-	reply := tgbotapi.NewMessage(msg.Chat.ID, "You said: "+msg.Text)
+	reply := tgbotapi.NewMessage(msg.Chat.ID, " ")
 	bot.Send(reply)
 }
-

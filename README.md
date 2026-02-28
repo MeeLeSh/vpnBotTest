@@ -31,9 +31,10 @@ You only need to recreate containers if you change the Docker setup or wipe volu
 In a terminal where you will run the bot (PowerShell examples):
 
 ```powershell
-$env:TELEGRAM_BOT_TOKEN = "YOUR_TELEGRAM_TOKEN_HERE"
-$env:DATABASE_URL = "postgres://vpn_user:vpn_password@localhost:5432/vpn_db?sslmode=disable"
-$env:ACCOUNT_BASE_URL = "https://your-domain.com/account"
+$env:TELEGRAM_BOT_TOKEN   = "YOUR_TELEGRAM_TOKEN_HERE"
+$env:DATABASE_URL         = "postgres://vpn_user:vpn_password@localhost:5433/vpn_db?sslmode=disable"
+$env:REMNAWAVE_PANEL_URL  = "https://your-remnawave-panel.example.com"
+$env:REMNAWAVE_API_TOKEN  = "YOUR_REMNAWAVE_JWT_TOKEN"
 ```
 
 You can also make them permanent using `setx`, but for development the per-session variables are usually enough.
@@ -67,18 +68,18 @@ The bot is now running and listening for messages.
 ## 6. Available commands
 
 - `/start`  
-  Short description of the bot and a hint to use `/instruction`.
-
+Short description of the bot and a hint to use `/instruction`.
 - `/instruction`  
-  Sends step-by-step instructions (editable in `main.go`).
-
+Sends step-by-step instructions (editable in `main.go`).
 - `/account`  
   - If the user **does not exist** in the `VpnUser` table:
-    - Generates a new account link using `ACCOUNT_BASE_URL` and the user’s Telegram ID,
-    - Inserts a new row into `VpnUser`,
+    - Computes a username (Telegram `UserName` or `tg-<telegramId>` as fallback)
+    - Generates a new account link using username
+    - Calls Remnawave `Users().CreateUser` with that username, `ExpireAt = now()`, and `TelegramId`
+    - Inserts a new row into `VpnUser`
     - Returns the generated link.
   - If the user **exists** in `VpnUser`:
-    - Reads `accountDetailsLink` from the database,
+    - Reads `accountDetailsLink` from the database
     - Returns that stored link.
 
 ## 7. Stopping the services
@@ -90,4 +91,3 @@ docker compose down
 ```
 
 To stop the bot, press `Ctrl + C` in the terminal where `go run .` is running.
-

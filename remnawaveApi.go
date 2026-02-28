@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"time"
@@ -10,23 +9,14 @@ import (
 	remapi "github.com/Jolymmiles/remnawave-api-go/v2/api"
 )
 
-// generateAccountLink builds a new account link for a given username and telegram ID.
-// The base URL is taken from ACCOUNT_BASE_URL, or falls back to a default.
-// It also creates the user in Remnawave with ExpireAt set to now().
-func generateAccountLink(username string, telegramID int64) string {
-	baseURL := os.Getenv("ACCOUNT_BASE_URL")
-	if baseURL == "" {
-		baseURL = "https://your-domain.com/account"
-	}
+var remnawaveClient *remapi.ClientExt
 
-	link := fmt.Sprintf("%s/new/%s", baseURL, username)
-
+func initRemnawaveClient() error {
 	panelURL := os.Getenv("REMNAWAVE_PANEL_URL")
 	apiToken := os.Getenv("REMNAWAVE_API_TOKEN")
 
 	if panelURL == "" || apiToken == "" {
-		// If not configured, just skip the external call.
-		return link
+		return nil
 	}
 
 	baseClient, err := remapi.NewClient(
@@ -34,23 +24,37 @@ func generateAccountLink(username string, telegramID int64) string {
 		remapi.StaticToken{Token: apiToken},
 	)
 	if err != nil {
-		log.Printf("failed to create Remnawave base client: %v", err)
-		return link
+		return err
 	}
 
-	client := remapi.NewClientExt(baseClient)
+	remnawaveClient = remapi.NewClientExt(baseClient)
+	return nil
+}
+
+// generateAccountLink creates a user in Remnawave and returns its SubscriptionUrl.
+func generateAccountLink(username string, telegramID int64) string {
+	if remnawaveClient == nil {
+		log.Printf("Remnawave client not initialized (REMNAWAVE_PANEL_URL/REMNAWAVE_API_TOKEN not set)")
+		return ""
+	}
 
 	ctx := context.Background()
 
-	_, err = client.Users().CreateUser(ctx, &remapi.CreateUserRequest{
+	resp, err := remnawaveClient.Users().CreateUser(ctx, &remapi.CreateUserRequest{
 		Username:   username,
 		ExpireAt:   time.Now(),
 		TelegramId: remapi.OptNilInt{Value: int(telegramID), Set: true},
 	})
 	if err != nil {
 		log.Printf("failed to create Remnawave user %s: %v", username, err)
+		return ""
 	}
 
-	return link
+	if created, ok := resp.(*remapi.UserResponse); ok {
+		return created.Response.SubscriptionUrl
+	}
+
+	log.Printf("unexpected CreateUser response type: %T", resp)
+	return ""
 }
 
