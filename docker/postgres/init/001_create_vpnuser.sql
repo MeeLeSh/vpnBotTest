@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS "VpnUser" (
-    telegramId BIGINT PRIMARY KEY,
+    username TEXT PRIMARY KEY,
+    telegramId BIGINT NOT NULL,
     accountDetailsLink TEXT NOT NULL
 );
 

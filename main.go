@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 
@@ -82,7 +83,12 @@ func handleAccountCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	ctx := context.Background()
 	telegramID := int64(msg.From.ID)
 
-	user, err := getVpnUserByTelegramID(ctx, telegramID)
+	username := msg.From.UserName
+	if username == "" {
+		username = fmt.Sprintf("tg-%d", telegramID)
+	}
+
+	user, err := getVpnUserByUsername(ctx, username)
 	if err != nil {
 		log.Printf("failed to get vpn user: %v", err)
 		reply := tgbotapi.NewMessage(msg.Chat.ID, "Sorry, something went wrong. Please try again later.")
@@ -93,9 +99,9 @@ func handleAccountCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	var link string
 
 	if user == nil {
-		link = generateAccountLink(telegramID)
+		link = generateAccountLink(username, telegramID)
 
-		if err := createVpnUser(ctx, telegramID, link); err != nil {
+		if err := createVpnUser(ctx, username, telegramID, link); err != nil {
 			log.Printf("failed to create vpn user: %v", err)
 			reply := tgbotapi.NewMessage(msg.Chat.ID, "Sorry, something went wrong while creating your account.")
 			bot.Send(reply)

@@ -3,8 +3,9 @@ package main
 import (
 	"context"
 	"errors"
-	"os"
 	"log"
+	"os"
+
 	pgx "github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -12,6 +13,7 @@ import (
 var db *pgxpool.Pool
 
 type VpnUser struct {
+	Username           string
 	TelegramID         int64
 	AccountDetailsLink string
 }
@@ -26,13 +28,13 @@ func initDB(ctx context.Context) (*pgxpool.Pool, error) {
 	return pgxpool.New(ctx, dbURL)
 }
 
-func getVpnUserByTelegramID(ctx context.Context, telegramID int64) (*VpnUser, error) {
-	const query = `SELECT telegramId, accountDetailsLink FROM "VpnUser" WHERE telegramId = $1`
+func getVpnUserByUsername(ctx context.Context, username string) (*VpnUser, error) {
+	const query = `SELECT username, telegramId, accountDetailsLink FROM "VpnUser" WHERE username = $1`
 
-	row := db.QueryRow(ctx, query, telegramID)
+	row := db.QueryRow(ctx, query, username)
 
 	var u VpnUser
-	if err := row.Scan(&u.TelegramID, &u.AccountDetailsLink); err != nil {
+	if err := row.Scan(&u.Username, &u.TelegramID, &u.AccountDetailsLink); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
@@ -42,9 +44,9 @@ func getVpnUserByTelegramID(ctx context.Context, telegramID int64) (*VpnUser, er
 	return &u, nil
 }
 
-func createVpnUser(ctx context.Context, telegramID int64, accountLink string) error {
-	const query = `INSERT INTO "VpnUser" (telegramId, accountDetailsLink) VALUES ($1, $2)`
-	_, err := db.Exec(ctx, query, telegramID, accountLink)
+func createVpnUser(ctx context.Context, username string, telegramID int64, accountLink string) error {
+	const query = `INSERT INTO "VpnUser" (username, telegramId, accountDetailsLink) VALUES ($1, $2, $3)`
+	_, err := db.Exec(ctx, query, username, telegramID, accountLink)
 	return err
 }
 
