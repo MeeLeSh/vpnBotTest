@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"time"
@@ -44,18 +45,14 @@ func generateAccountLink(username string, telegramID int64) string {
 	getResp, err := remnawaveClient.Users().GetUserByUsername(ctx, username)
 	if err != nil {
 		log.Printf("failed to call Remnawave GetUserByUsername %s: %v", username, err)
-		return ""
 	}
 
-	switch r := getResp.(type) {
-	case *remapi.UserResponse:
-		// User already exists, reuse its subscription URL
-		return r.Response.SubscriptionUrl
-	case *remapi.NotFoundError:
-		// User does not exist, fall through to create
-	default:
-		log.Printf("unexpected GetUserByUsername response type: %T", getResp)
-		return ""
+	if getResp != nil {
+		switch r := getResp.(type) {
+		case *remapi.UserResponse:
+			// User already exists, reuse its subscription URL
+			return r.Response.SubscriptionUrl
+		}
 	}
 
 	// Not found → create a new user
@@ -77,3 +74,56 @@ func generateAccountLink(username string, telegramID int64) string {
 	return ""
 }
 
+// Subscribe applies a subscription in Remnawave by extending the user's ExpireAt.
+// Plan is one of: "1week_test", "1month", "3months".
+func Subscribe(ctx context.Context, username string, telegramID int64, plan string) error {
+	if remnawaveClient == nil {
+		return nil
+	}
+
+	getResp, err := remnawaveClient.Users().GetUserByUsername(ctx, username)
+	if err != nil {
+		return err
+	}
+
+	var userResp *remapi.UserResponse
+	switch r := getResp.(type) {
+	case *remapi.UserResponse:
+		userResp = r
+	case *remapi.NotFoundError:
+		return fmt.Errorf("user not found in panel: get your account link first (Profile)")
+	default:
+		return nil
+	}
+
+	userUUID := userResp.Response.UUID
+	expireAt := userResp.Response.ExpireAt
+
+	var extend time.Duration
+	switch plan {
+	case "1week_test":
+		extend = 7 * 24 * time.Hour
+	case "1month":
+		extend = 30 * 24 * time.Hour
+	case "3months":
+		extend = 90 * 24 * time.Hour
+	default:
+		return nil
+	}
+
+	now := time.Now()
+	var newExpireAt time.Time
+	if expireAt.Before(now) || expireAt.Equal(now) {
+		// Подписка истекла — прибавляем срок от сегодняшнего дня
+		newExpireAt = now.Add(extend)
+	} else {
+		// Подписка ещё активна — прибавляем срок к текущей дате окончания
+		newExpireAt = expireAt.Add(extend)
+	}
+
+	_, err = remnawaveClient.Users().UpdateUser(ctx, &remapi.UpdateUserRequest{
+		UUID:     remapi.NewOptUUID(userUUID),
+		ExpireAt: remapi.NewOptDateTime(newExpireAt),
+	})
+	return err
+}
