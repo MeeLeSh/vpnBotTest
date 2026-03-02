@@ -1,10 +1,9 @@
-package main
+package vpnbot
 
 import (
 	"context"
 	"errors"
 	"log"
-	"os"
 
 	pgx "github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -20,13 +19,11 @@ type VpnUser struct {
 }
 
 func initDB(ctx context.Context) (*pgxpool.Pool, error) {
-	dbURL := os.Getenv("DATABASE_URL")
-	log.Printf("DATABASE_URL: %q", dbURL)
-	if dbURL == "" {
-		return nil, errors.New("DATABASE_URL environment variable is not set")
+	if AppConfig == nil {
+		return nil, errors.New("AppConfig is not initialized")
 	}
-
-	return pgxpool.New(ctx, dbURL)
+	log.Printf("DATABASE_URL: %q", AppConfig.DatabaseURL)
+	return pgxpool.New(ctx, AppConfig.DatabaseURL)
 }
 
 func getVpnUserByUsername(ctx context.Context, username string) (*VpnUser, error) {
@@ -94,3 +91,4 @@ func deleteInvoiceStatusByInvoiceID(ctx context.Context, invoiceID int64) error 
 	_, err := db.Exec(ctx, query, invoiceID)
 	return err
 }
+

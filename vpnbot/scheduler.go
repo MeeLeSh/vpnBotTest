@@ -1,6 +1,6 @@
-// Package main: scheduler that periodically fetches Crypto Pay invoices and sends Telegram messages when paid.
+// Package vpnbot: scheduler that periodically fetches Crypto Pay invoices and sends Telegram messages when paid.
 
-package main
+package vpnbot
 
 import (
 	"context"
@@ -18,8 +18,8 @@ const schedulerInterval = 1 * time.Minute
 // sends the user a Telegram message "Subscription {plan} is paid" (plan and telegramId from payload).
 // Does nothing if Crypto Pay is not configured (no token).
 func RunScheduler(bot *tgbotapi.BotAPI) {
-	if cryptoPayAPIToken == "" {
-		log.Printf("cryptoPayAPIToken for scheduler is null")
+	if AppConfig == nil || AppConfig.CryptoPayToken == "" {
+		log.Printf("Crypto Pay token for scheduler is not configured")
 		return
 	}
 
@@ -33,6 +33,7 @@ func RunScheduler(bot *tgbotapi.BotAPI) {
 	}
 }
 
+// TODO
 // parsePayload extracts plan and telegram ID from payload.
 // Supports: "plan:1month(tg_id=123,...)" or "plan:3months(tg_id=123,...)" or "plan:1month:tg:123".
 func parsePayload(payload string) (plan string, telegramID int64, ok bool) {
@@ -128,3 +129,4 @@ func checkInvoices(bot *tgbotapi.BotAPI) {
 		}
 	}
 }
+

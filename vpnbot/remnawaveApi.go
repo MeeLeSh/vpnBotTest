@@ -1,10 +1,9 @@
-package main
+package vpnbot
 
 import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"strconv"
 	"time"
 
@@ -15,16 +14,13 @@ import (
 var remnawaveClient *remapi.ClientExt
 
 func initRemnawaveClient() error {
-	panelURL := os.Getenv("REMNAWAVE_PANEL_URL")
-	apiToken := os.Getenv("REMNAWAVE_API_TOKEN")
-
-	if panelURL == "" || apiToken == "" {
+	if AppConfig == nil || AppConfig.RemnawavePanelURL == "" || AppConfig.RemnawaveAPIToken == "" {
 		return nil
 	}
 
 	baseClient, err := remapi.NewClient(
-		panelURL,
-		remapi.StaticToken{Token: apiToken},
+		AppConfig.RemnawavePanelURL,
+		remapi.StaticToken{Token: AppConfig.RemnawaveAPIToken},
 	)
 	if err != nil {
 		return err
@@ -108,7 +104,6 @@ func Subscribe(ctx context.Context, telegramID int64, plan string) error {
 	}
 
 	var extend time.Duration
-	log.Printf("plan: %s", plan)
 	switch plan {
 	case "1week_test":
 		extend = 7 * 24 * time.Hour
@@ -136,3 +131,4 @@ func Subscribe(ctx context.Context, telegramID int64, plan string) error {
 	})
 	return err
 }
+

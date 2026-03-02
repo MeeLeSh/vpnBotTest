@@ -1,4 +1,4 @@
-package main
+package vpnbot
 
 import (
 	"errors"
@@ -9,6 +9,8 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
 )
+
+// TODO убедиться, что миграции выполняются
 
 func runMigrations(dbURL string) error {
 	m, err := migrate.New("file://migrations", dbURL)
