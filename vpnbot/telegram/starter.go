@@ -1,4 +1,4 @@
-package vpnbot
+package telegram
 
 import (
 	"context"
@@ -6,30 +6,33 @@ import (
 	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+
+	"vpnBot/vpnbot/api"
+	"vpnBot/vpnbot/config"
+	"vpnBot/vpnbot/db"
 )
 
 func Run() {
-	cfg, err := LoadConfig()
+	cfg, err := config.LoadConfig()
 	if err != nil {
 		log.Fatal(err)
 	}
-	AppConfig = cfg
+	config.AppConfig = cfg
 
-	if err := runMigrations(AppConfig.DatabaseURL); err != nil {
+	if err := db.RunMigrations(config.AppConfig.DatabaseURL); err != nil {
 		log.Fatalf("failed to run migrations: %v", err)
 	}
 
-	db, err = initDB(context.Background())
-	if err != nil {
+	if _, err := db.Init(context.Background(), config.AppConfig.DatabaseURL); err != nil {
 		log.Fatalf("unable to connect to database: %v", err)
 	}
 	defer db.Close()
 
-	if err := initRemnawaveClient(); err != nil {
+	if err := api.InitRemnawaveClient(); err != nil {
 		log.Fatalf("failed to init Remnawave client: %v", err)
 	}
 
-	bot, err := tgbotapi.NewBotAPI(AppConfig.TelegramBotToken)
+	bot, err := tgbotapi.NewBotAPI(config.AppConfig.TelegramBotToken)
 	if err != nil {
 		log.Fatalf("failed to create bot: %v", err)
 	}
@@ -46,13 +49,13 @@ func Run() {
 	for update := range updates {
 		// Pre-checkout: must answer within 10 seconds or payment is cancelled
 		if update.PreCheckoutQuery != nil {
-			handlePreCheckoutQuery(bot, update.PreCheckoutQuery)
+			HandlePreCheckoutQuery(bot, update.PreCheckoutQuery)
 			continue
 		}
 
 		// Successful payment: deliver subscription
 		if update.Message != nil && update.Message.SuccessfulPayment != nil {
-			handleSuccessfulStarsPayment(bot, update.Message)
+			HandleSuccessfulStarsPayment(bot, update.Message)
 			continue
 		}
 
@@ -61,19 +64,19 @@ func Run() {
 			switch update.CallbackQuery.Data {
 			case "plan_1week":
 				// 1 week test: apply immediately, no payment step
-				handleSub1WeekTest(bot, update.CallbackQuery)
+				HandleSub1WeekTest(bot, update.CallbackQuery)
 			case "plan_1month":
-				handlePlanChoice(bot, update.CallbackQuery, "1month")
+				HandlePlanChoice(bot, update.CallbackQuery, "1month")
 			case "plan_3months":
-				handlePlanChoice(bot, update.CallbackQuery, "3months")
+				HandlePlanChoice(bot, update.CallbackQuery, "3months")
 			case "pay_stars_1month":
-				handlePayStarsPlan1Month(bot, update.CallbackQuery)
+				HandlePayStarsPlan1Month(bot, update.CallbackQuery)
 			case "pay_stars_3months":
-				handlePayStarsPlan3Months(bot, update.CallbackQuery)
+				HandlePayStarsPlan3Months(bot, update.CallbackQuery)
 			case "pay_crypto_1month":
-				handlePayCryptoPlan1Month(bot, update.CallbackQuery)
+				HandlePayCryptoPlan1Month(bot, update.CallbackQuery)
 			case "pay_crypto_3months":
-				handlePayCryptoPlan3Months(bot, update.CallbackQuery)
+				HandlePayCryptoPlan3Months(bot, update.CallbackQuery)
 			continue
 			}
 		}
@@ -95,11 +98,11 @@ func Run() {
 		}
 
 		if update.Message.IsCommand() || strings.HasPrefix(update.Message.Text, "/") {
-			handleCommand(bot, update.Message)
+			HandleCommand(bot, update.Message)
 			continue
 		}
 
-		handleMessage(bot, update.Message)
+		HandleMessage(bot, update.Message)
 	}
 }
 

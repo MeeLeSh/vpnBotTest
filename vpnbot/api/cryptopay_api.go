@@ -1,7 +1,7 @@
-// Package vpnbot: Crypto Pay API client (https://help.send.tg/en/articles/10279948-crypto-pay-api).
+// Package api: Crypto Pay API client (https://help.send.tg/en/articles/10279948-crypto-pay-api).
 // API base: https://pay.crypt.bot (mainnet), https://testnet-pay.crypt.bot (testnet).
 
-package vpnbot
+package api
 
 import (
 	"bytes"
@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"vpnBot/vpnbot/config"
 )
 
 // Invoice is the Crypto Pay API Invoice object returned by createInvoice.
@@ -65,13 +67,13 @@ var cryptoPayHTTPClient = &http.Client{Timeout: 15 * time.Second}
 // Uses AppConfig.CryptoPayToken and AppConfig.CryptoPayTestnet (env CRYPTO_PAY_API_TOKEN, CRYPTO_PAY_TESTNET).
 // Returns (nil, nil) if token is not set or config not loaded.
 func CreateInvoice(ctx context.Context, opts CreateInvoiceOpts) (*Invoice, error) {
-	if AppConfig == nil || AppConfig.CryptoPayToken == "" {
+	if config.AppConfig == nil || config.AppConfig.CryptoPayToken == "" {
 		return nil, nil
 	}
 
-	base := AppConfig.CryptoPayAPIBaseURL
-	if AppConfig.CryptoPayTestnet == "1" {
-		base = AppConfig.CryptoPayAPITestnetURL
+	base := config.AppConfig.CryptoPayAPIBaseURL
+	if config.AppConfig.CryptoPayTestnet == "1" {
+		base = config.AppConfig.CryptoPayAPITestnetURL
 	}
 
 	body, err := json.Marshal(opts)
@@ -84,7 +86,7 @@ func CreateInvoice(ctx context.Context, opts CreateInvoiceOpts) (*Invoice, error
 		return nil, fmt.Errorf("cryptopay: new request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Crypto-Pay-API-Token", AppConfig.CryptoPayToken)
+	req.Header.Set("Crypto-Pay-API-Token", config.AppConfig.CryptoPayToken)
 
 	resp, err := cryptoPayHTTPClient.Do(req)
 	if err != nil {
@@ -111,16 +113,16 @@ func CreateInvoice(ctx context.Context, opts CreateInvoiceOpts) (*Invoice, error
 // GetInvoices returns invoices created by your app for the given invoice IDs (see https://help.send.tg/en/articles/10279948-crypto-pay-api).
 // Returns (nil, nil) if token is not set, config not loaded, or invoiceIDs is empty.
 func GetInvoices(ctx context.Context, invoiceIDs []int64) ([]Invoice, error) {
-	if AppConfig == nil || AppConfig.CryptoPayToken == "" {
+	if config.AppConfig == nil || config.AppConfig.CryptoPayToken == "" {
 		return nil, nil
 	}
 	if len(invoiceIDs) == 0 {
 		return nil, nil
 	}
 
-	base := AppConfig.CryptoPayAPIBaseURL
-	if AppConfig.CryptoPayTestnet == "1" {
-		base = AppConfig.CryptoPayAPITestnetURL
+	base := config.AppConfig.CryptoPayAPIBaseURL
+	if config.AppConfig.CryptoPayTestnet == "1" {
+		base = config.AppConfig.CryptoPayAPITestnetURL
 	}
 
 	// build invoice_ids param as comma-separated list
@@ -135,7 +137,7 @@ func GetInvoices(ctx context.Context, invoiceIDs []int64) ([]Invoice, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cryptopay: new request: %w", err)
 	}
-	req.Header.Set("Crypto-Pay-API-Token", AppConfig.CryptoPayToken)
+	req.Header.Set("Crypto-Pay-API-Token", config.AppConfig.CryptoPayToken)
 
 	resp, err := cryptoPayHTTPClient.Do(req)
 	if err != nil {
@@ -178,3 +180,4 @@ func GetInvoices(ctx context.Context, invoiceIDs []int64) ([]Invoice, error) {
 
 	return withItems.Items, nil
 }
+

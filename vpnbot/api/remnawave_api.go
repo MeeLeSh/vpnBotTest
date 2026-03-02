@@ -1,4 +1,4 @@
-package vpnbot
+package api
 
 import (
 	"context"
@@ -9,18 +9,21 @@ import (
 
 	"github.com/google/uuid"
 	remapi "github.com/Jolymmiles/remnawave-api-go/v2/api"
+
+	"vpnBot/vpnbot/config"
 )
 
 var remnawaveClient *remapi.ClientExt
 
-func initRemnawaveClient() error {
-	if AppConfig == nil || AppConfig.RemnawavePanelURL == "" || AppConfig.RemnawaveAPIToken == "" {
+// InitRemnawaveClient initializes the Remnawave API client using AppConfig.
+func InitRemnawaveClient() error {
+	if config.AppConfig == nil || config.AppConfig.RemnawavePanelURL == "" || config.AppConfig.RemnawaveAPIToken == "" {
 		return nil
 	}
 
 	baseClient, err := remapi.NewClient(
-		AppConfig.RemnawavePanelURL,
-		remapi.StaticToken{Token: AppConfig.RemnawaveAPIToken},
+		config.AppConfig.RemnawavePanelURL,
+		remapi.StaticToken{Token: config.AppConfig.RemnawaveAPIToken},
 	)
 	if err != nil {
 		return err
@@ -30,9 +33,9 @@ func initRemnawaveClient() error {
 	return nil
 }
 
-// generateAccountLink creates (or reuses) a user in Remnawave and returns its SubscriptionUrl.
+// GenerateAccountLink creates (or reuses) a user in Remnawave and returns its SubscriptionUrl.
 // It first looks up the user by Telegram ID, then falls back to creating a new user.
-func generateAccountLink(username string, telegramID int64) string {
+func GenerateAccountLink(username string, telegramID int64) string {
 	if remnawaveClient == nil {
 		log.Printf("Remnawave client not initialized (REMNAWAVE_PANEL_URL/REMNAWAVE_API_TOKEN not set)")
 		return ""

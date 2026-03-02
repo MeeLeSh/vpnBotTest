@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	vpnbot "vpnBot/vpnbot"
+	"vpnBot/vpnbot/telegram"
 )
 
 func main() {
@@ -13,7 +13,7 @@ func main() {
 }
 
 func run() error {
-	vpnbot.Run()
+	telegram.Run()
 	return nil
 }
 

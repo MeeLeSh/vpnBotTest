@@ -1,4 +1,4 @@
-package vpnbot
+package db
 
 import (
 	"errors"
@@ -10,9 +10,8 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// TODO убедиться, что миграции выполняются
-
-func runMigrations(dbURL string) error {
+// RunMigrations applies database migrations from the local migrations directory.
+func RunMigrations(dbURL string) error {
 	m, err := migrate.New("file://migrations", dbURL)
 	if err != nil {
 		return fmt.Errorf("create migrator: %w", err)

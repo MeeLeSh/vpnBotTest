@@ -1,4 +1,4 @@
-package vpnbot
+package telegram
 
 import (
 	"context"
@@ -7,9 +7,12 @@ import (
 	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+
+	"vpnBot/vpnbot/api"
+	"vpnBot/vpnbot/db"
 )
 
-func handleCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
+func HandleCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	cmd := msg.Command()
 	if cmd == "" && strings.HasPrefix(msg.Text, "/") {
 		cmd = strings.TrimPrefix(strings.Fields(msg.Text)[0], "/")
@@ -108,7 +111,7 @@ func handleUnknownCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	bot.Send(reply)
 }
 
-func handleMessage(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
+func HandleMessage(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	reply := tgbotapi.NewMessage(msg.Chat.ID, " ")
 	bot.Send(reply)
 }
@@ -123,7 +126,7 @@ func resolveUserAndLink(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) (ctx contex
 		username = fmt.Sprintf("tg-%d", telegramID)
 	}
 
-	user, err := getVpnUserByUsername(ctx, username)
+	user, err := db.GetVpnUserByUsername(ctx, username)
 	if err != nil {
 		log.Printf("failed to get vpn user: %v", err)
 		bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Sorry, something went wrong. Please try again later."))
@@ -131,8 +134,8 @@ func resolveUserAndLink(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) (ctx contex
 	}
 
 	if user == nil || user.AccountDetailsLink == "" {
-		link = generateAccountLink(username, telegramID)
-		if err := createVpnUser(ctx, username, telegramID, link, false); err != nil {
+		link = api.GenerateAccountLink(username, telegramID)
+		if err := db.CreateVpnUser(ctx, username, telegramID, link, false); err != nil {
 			log.Printf("failed to create vpn user: %v", err)
 			bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Sorry, something went wrong while creating your account."))
 			return ctx, telegramID, username, "", false
@@ -142,5 +145,4 @@ func resolveUserAndLink(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) (ctx contex
 	}
 	return ctx, telegramID, username, link, true
 }
-
 

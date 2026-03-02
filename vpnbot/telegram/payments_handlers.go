@@ -1,4 +1,4 @@
-package vpnbot
+package telegram
 
 import (
 	"context"
@@ -6,16 +6,14 @@ import (
 	"log"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+
+	"vpnBot/vpnbot/api"
+	"vpnBot/vpnbot/config"
+	"vpnBot/vpnbot/db"
 )
 
-// Stars price per plan (Telegram Stars = XTR). Adjust to your pricing.
-const (
-	stars1Month  = 1 // 1 month subscription
-	stars3Months = 3 // 3 months subscription
-)
-
-// handlePlanChoice shows payment method buttons (Stars / Crypto) for the chosen plan.
-func handlePlanChoice(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery, plan string) {
+// HandlePlanChoice shows payment method buttons (Stars / Crypto) for the chosen plan.
+func HandlePlanChoice(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery, plan string) {
 	answer := tgbotapi.NewCallback(callback.ID, "")
 	if _, err := bot.Request(answer); err != nil {
 		log.Printf("failed to answer callback: %v", err)
@@ -34,23 +32,43 @@ func handlePlanChoice(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery, pl
 	bot.Send(reply)
 }
 
-func handlePayCryptoPlan1Month(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery) {
+func HandlePayCryptoPlan1Month(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery) {
+	handlePayCryptoPlan(bot, callback,
+		"249",
+		"VPN subscription — 1 month",
+		"1month",
+		"Pay for 1 month subscription (249 ₽):\n",
+	)
+}
+
+func HandlePayCryptoPlan3Months(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery) {
+	handlePayCryptoPlan(bot, callback,
+		"699",
+		"VPN subscription — 3 months",
+		"3months",
+		"Pay for 3 months subscription (699 ₽):\n",
+	)
+}
+
+// handlePayCryptoPlan contains common logic for creating and sending a Crypto Pay invoice
+// and storing it in the invoice_queue.
+func handlePayCryptoPlan(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery, amount, description, plan, prefixText string) {
 	answer := tgbotapi.NewCallback(callback.ID, "")
 	if _, err := bot.Request(answer); err != nil {
 		log.Printf("failed to answer callback: %v", err)
 	}
 
-	inv, err := CreateInvoice(context.Background(), CreateInvoiceOpts{
-		CurrencyType:   "fiat",
-		Fiat:           "RUB",
-		Amount:         "249",
-		Description:    "VPN subscription — 1 month",
-		HiddenMessage:  "Subscription is paid successfully",
-		Payload:        fmt.Sprintf("plan:1month(tg_id=%d,username=%s)", callback.From.ID, callback.From.UserName),
+	inv, err := api.CreateInvoice(context.Background(), api.CreateInvoiceOpts{
+		CurrencyType:  "fiat",
+		Fiat:          "RUB",
+		Amount:        amount,
+		Description:   description,
+		HiddenMessage: "Subscription is paid successfully",
+		Payload:       fmt.Sprintf("plan:%s(tg_id=%d,username=%s)", plan, callback.From.ID, callback.From.UserName),
 	})
 
 	if err != nil {
-		log.Printf("crypto createInvoice 1month: %v", err)
+		log.Printf("crypto createInvoice: %v", err)
 		bot.Send(tgbotapi.NewMessage(callback.Message.Chat.ID, "Failed to create crypto invoice. Please try again later."))
 		return
 	}
@@ -60,49 +78,15 @@ func handlePayCryptoPlan1Month(bot *tgbotapi.BotAPI, callback *tgbotapi.Callback
 	}
 
 	ctx := context.Background()
-	if err := insertInvoiceStatus(ctx, inv.InvoiceID, int64(callback.From.ID), inv.Payload); err != nil {
-		log.Printf("insertInvoiceStatus 1month: %v", err)
+	if err := db.InsertInvoiceStatus(ctx, inv.InvoiceID, int64(callback.From.ID), inv.Payload); err != nil {
+		log.Printf("insertInvoiceStatus: %v", err)
 	}
 
-	text := "Pay for 1 month subscription (249 ₽):\n" + inv.BotInvoiceURL
+	text := prefixText + inv.BotInvoiceURL
 	bot.Send(tgbotapi.NewMessage(callback.Message.Chat.ID, text))
 }
 
-func handlePayCryptoPlan3Months(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery) {
-	answer := tgbotapi.NewCallback(callback.ID, "")
-	if _, err := bot.Request(answer); err != nil {
-		log.Printf("failed to answer callback: %v", err)
-	}
-
-	inv, err := CreateInvoice(context.Background(), CreateInvoiceOpts{
-		CurrencyType:   "fiat",
-		Fiat:           "RUB",
-		Amount:         "699",
-		Description:    "VPN subscription — 3 months",
-		HiddenMessage:  "Subscription is paid successfully",
-		Payload:        fmt.Sprintf("plan:3months(tg_id=%d,username=%s)", callback.From.ID, callback.From.UserName),
-	})
-
-	if err != nil {
-		log.Printf("crypto createInvoice 3months: %v", err)
-		bot.Send(tgbotapi.NewMessage(callback.Message.Chat.ID, "Failed to create crypto invoice. Please try again later."))
-		return
-	}
-	if inv == nil {
-		bot.Send(tgbotapi.NewMessage(callback.Message.Chat.ID, "Crypto payment is not configured. Contact support."))
-		return
-	}
-
-	ctx := context.Background()
-	if err := insertInvoiceStatus(ctx, inv.InvoiceID, int64(callback.From.ID), inv.Payload); err != nil {
-		log.Printf("insertInvoiceStatus 3months: %v", err)
-	}
-
-	text := "Pay for 3 months subscription (699 ₽):\n" + inv.BotInvoiceURL
-	bot.Send(tgbotapi.NewMessage(callback.Message.Chat.ID, text))
-}
-
-func handleSub1WeekTest(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery) {
+func HandleSub1WeekTest(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery) {
 	answer := tgbotapi.NewCallback(callback.ID, "")
 	if _, err := bot.Request(answer); err != nil {
 		log.Printf("failed to answer callback: %v", err)
@@ -115,7 +99,7 @@ func handleSub1WeekTest(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery) 
 		username = fmt.Sprintf("tg-%d", telegramID)
 	}
 
-	user, err := getVpnUserByUsername(ctx, username)
+	user, err := db.GetVpnUserByUsername(ctx, username)
 	if err != nil {
 		log.Printf("failed to get vpn user for test period: %v", err)
 		msg := tgbotapi.NewMessage(callback.Message.Chat.ID, "Something went wrong. Please try again later.")
@@ -130,7 +114,7 @@ func handleSub1WeekTest(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery) 
 	}
 
 	// apply test period
-	if err := Subscribe(ctx, telegramID, "1week_test"); err != nil {
+	if err := api.Subscribe(ctx, telegramID, "1week_test"); err != nil {
 		log.Printf("subscribe 1week_test failed for %s: %v", username, err)
 		bot.Send(tgbotapi.NewMessage(callback.Message.Chat.ID, "Failed: "+err.Error()))
 		return
@@ -139,25 +123,25 @@ func handleSub1WeekTest(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery) 
 	bot.Send(msg)
 
 	// mark test period as used
-	if err := markTestPeriodUsed(ctx, username); err != nil {
+	if err := db.MarkTestPeriodUsed(ctx, username); err != nil {
 		log.Printf("failed to mark test period used for %s: %v", username, err)
 	}
 }
 
-func handlePayStarsPlan1Month(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery) {
+func HandlePayStarsPlan1Month(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery) {
 	answer := tgbotapi.NewCallback(callback.ID, "")
 	if _, err := bot.Request(answer); err != nil {
 		log.Printf("failed to answer callback: %v", err)
 	}
-	sendStarsInvoice(bot, callback.Message.Chat.ID, "1 month", "VPN subscription for 1 month", "1 month", "plan:1month", stars1Month)
+	sendStarsInvoice(bot, callback.Message.Chat.ID, "1 month", "VPN subscription for 1 month", "1 month", "plan:1month", config.AppConfig.Stars1Month)
 }
 
-func handlePayStarsPlan3Months(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery) {
+func HandlePayStarsPlan3Months(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery) {
 	answer := tgbotapi.NewCallback(callback.ID, "")
 	if _, err := bot.Request(answer); err != nil {
 		log.Printf("failed to answer callback: %v", err)
 	}
-	sendStarsInvoice(bot, callback.Message.Chat.ID, "3 months", "VPN subscription for 3 months", "3 months", "plan:3months", stars3Months)
+	sendStarsInvoice(bot, callback.Message.Chat.ID, "3 months", "VPN subscription for 3 months", "3 months", "plan:3months", config.AppConfig.Stars3Months)
 }
 
 // sendStarsInvoice sends a Telegram Stars (XTR) invoice. providerToken empty for digital goods.
@@ -172,7 +156,7 @@ func sendStarsInvoice(bot *tgbotapi.BotAPI, chatID int64, title, description, pr
 	}
 }
 
-func handlePreCheckoutQuery(bot *tgbotapi.BotAPI, query *tgbotapi.PreCheckoutQuery) {
+func HandlePreCheckoutQuery(bot *tgbotapi.BotAPI, query *tgbotapi.PreCheckoutQuery) {
 	// Accept any payload we issued (plan:1month, plan:3months). Optionally validate stock/price here.
 	cfg := tgbotapi.PreCheckoutConfig{PreCheckoutQueryID: query.ID, OK: true}
 	if _, err := bot.Request(cfg); err != nil {
@@ -180,7 +164,7 @@ func handlePreCheckoutQuery(bot *tgbotapi.BotAPI, query *tgbotapi.PreCheckoutQue
 	}
 }
 
-func handleSuccessfulStarsPayment(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
+func HandleSuccessfulStarsPayment(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	payload := msg.SuccessfulPayment.InvoicePayload
 	// payload is e.g. "plan:1month" or "plan:3months"
 	var plan string
@@ -202,7 +186,7 @@ func handleSuccessfulStarsPayment(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 		username = fmt.Sprintf("tg-%d", telegramID)
 	}
 
-	if err := Subscribe(ctx, telegramID, plan); err != nil {
+	if err := api.Subscribe(ctx, telegramID, plan); err != nil {
 		log.Printf("subscribe %s after payment failed for %s: %v", plan, username, err)
 		bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Payment received but activation failed: "+err.Error()+". Contact support."))
 		return

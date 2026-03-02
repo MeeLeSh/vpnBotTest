@@ -43,8 +43,8 @@ $env:CRYPTO_PAY_TESTNET   = "1"                           # set to 1 for testnet
 
 **How to get `CRYPTO_PAY_API_TOKEN`:**
 
-- **Mainnet (real payments):** Open [@CryptoBot](https://t.me/CryptoBot) → **Crypto Pay** → **Create App** → copy the API token.
-- **Testnet (testing only):** Open [@CryptoTestnetBot](https://t.me/CryptoTestnetBot) → **Crypto Pay** → **Create App** → copy the API token. Use that token as `CRYPTO_PAY_API_TOKEN` and set `CRYPTO_PAY_TESTNET=1`.
+- **Mainnet (real payments):** Open `@CryptoBot` in Telegram → **Crypto Pay** → **Create App** → copy the API token.
+- **Testnet (testing only):** Open `@CryptoTestnetBot` → **Crypto Pay** → **Create App** → copy the API token. Use that token as `CRYPTO_PAY_API_TOKEN` and set `CRYPTO_PAY_TESTNET=1`.
 
 You can also make them permanent using `setx`, but for development the per-session variables are usually enough.
 
@@ -60,13 +60,19 @@ This downloads all required Go modules (Telegram API client, pgx, etc.).
 
 ## 5. Run the bot
 
-From the project root:
+The entrypoint is in `cmd/vpnbot/main.go`. From the project root:
 
 ```bash
-go run .
+go run ./cmd/vpnbot
 ```
 
-On startup the app runs DB migrations from `./migrations` (using `DATABASE_URL`).
+On startup the app:
+
+- loads config from environment (`vpnbot/config`),
+- runs DB migrations from `./migrations` (using `DATABASE_URL`),
+- opens a PostgreSQL connection pool (`vpnbot/db`),
+- initializes Remnawave and Crypto Pay API clients (`vpnbot/api`),
+- starts the Telegram update loop (`vpnbot/telegram`).
 
 You should see a log line similar to:
 
@@ -76,6 +82,15 @@ Authorized on account <bot_username>
 
 The bot is now running and listening for messages.
 
+### (Optional) Build a binary
+
+From the project root:
+
+```bash
+go build -o vpnbot.exe ./cmd/vpnbot
+.\vpnbot.exe
+```
+
 ## 6. Available commands
 
 You can type commands or use the reply keyboard buttons after `/start`.
@@ -83,7 +98,7 @@ You can type commands or use the reply keyboard buttons after `/start`.
 | Command / Button | Description |
 |------------------|-------------|
 | `/start` | Welcome message and reply keyboard: **Guide**, **Profile**, **Subscription**. Ensures the user exists in the DB and has an account link (creates one via Remnawave if needed). |
-| `/instruction` (Guide) | Sends step-by-step instructions (editable in `main.go`). |
+| `/instruction` (Guide) | Sends step-by-step instructions (text is defined in `vpnbot/telegram/command_handlers.go`, in `handleInstructionCommand`). |
 | `/account` (Profile) | Returns your VPN account details link. If you don’t have one yet, the bot creates a Remnawave user and stores the link. |
 | `/substribe` (Subscription) | Opens subscription flow (see below). |
 
@@ -103,4 +118,4 @@ To stop the Postgres container:
 docker compose down
 ```
 
-To stop the bot, press `Ctrl + C` in the terminal where `go run .` is running.
+To stop the bot, press `Ctrl + C` in the terminal where `go run ./cmd/vpnbot` is running.

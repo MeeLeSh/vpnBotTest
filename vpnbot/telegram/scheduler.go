@@ -1,6 +1,6 @@
-// Package vpnbot: scheduler that periodically fetches Crypto Pay invoices and sends Telegram messages when paid.
+// Package telegram: scheduler that periodically fetches Crypto Pay invoices and sends Telegram messages when paid.
 
-package vpnbot
+package telegram
 
 import (
 	"context"
@@ -10,6 +10,10 @@ import (
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+
+	"vpnBot/vpnbot/api"
+	"vpnBot/vpnbot/config"
+	"vpnBot/vpnbot/db"
 )
 
 const schedulerInterval = 1 * time.Minute
@@ -18,7 +22,7 @@ const schedulerInterval = 1 * time.Minute
 // sends the user a Telegram message "Subscription {plan} is paid" (plan and telegramId from payload).
 // Does nothing if Crypto Pay is not configured (no token).
 func RunScheduler(bot *tgbotapi.BotAPI) {
-	if AppConfig == nil || AppConfig.CryptoPayToken == "" {
+	if config.AppConfig == nil || config.AppConfig.CryptoPayToken == "" {
 		log.Printf("Crypto Pay token for scheduler is not configured")
 		return
 	}
@@ -33,7 +37,6 @@ func RunScheduler(bot *tgbotapi.BotAPI) {
 	}
 }
 
-// TODO
 // parsePayload extracts plan and telegram ID from payload.
 // Supports: "plan:1month(tg_id=123,...)" or "plan:3months(tg_id=123,...)" or "plan:1month:tg:123".
 func parsePayload(payload string) (plan string, telegramID int64, ok bool) {
@@ -82,7 +85,7 @@ func checkInvoices(bot *tgbotapi.BotAPI) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
-	ids, err := getQueuedInvoiceIDs(ctx)
+	ids, err := db.GetQueuedInvoiceIDs(ctx)
 	if err != nil {
 		log.Printf("scheduler getQueuedInvoiceIDs: %v", err)
 		return
@@ -91,7 +94,7 @@ func checkInvoices(bot *tgbotapi.BotAPI) {
 		return
 	}
 
-	invoices, err := GetInvoices(ctx, ids)
+	invoices, err := api.GetInvoices(ctx, ids)
 	if err != nil {
 		log.Printf("scheduler getInvoices: %v", err)
 		return
@@ -108,7 +111,7 @@ func checkInvoices(bot *tgbotapi.BotAPI) {
 		}
 
 		// Apply subscription in Remnawave based on plan and Telegram ID.
-		if err := Subscribe(ctx, telegramID, plan); err != nil {
+		if err := api.Subscribe(ctx, telegramID, plan); err != nil {
 			log.Printf("scheduler: subscribe %s failed for tg %d: %v", plan, telegramID, err)
 			failMsg := tgbotapi.NewMessage(telegramID, "Payment received but activation failed: "+err.Error()+". Contact support.")
 			if _, sendErr := bot.Send(failMsg); sendErr != nil {
@@ -124,7 +127,7 @@ func checkInvoices(bot *tgbotapi.BotAPI) {
 			log.Printf("scheduler: send telegram to %d: %v", telegramID, err)
 		}
 
-		if err := deleteInvoiceStatusByInvoiceID(ctx, inv.InvoiceID); err != nil {
+		if err := db.DeleteInvoiceStatusByInvoiceID(ctx, inv.InvoiceID); err != nil {
 			log.Printf("scheduler: delete invoice_queue for %d: %v", inv.InvoiceID, err)
 		}
 	}
