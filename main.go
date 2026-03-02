@@ -50,6 +50,8 @@ func main() {
 
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
+	go RunScheduler(bot)
+
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 
@@ -102,6 +104,8 @@ func main() {
 			update.Message.Text = "/account"
 		case "Subscription":
 			update.Message.Text = "/substribe"
+		case "Help":
+			update.Message.Text = "/help"
 		}
 
 		if update.Message.IsCommand() || strings.HasPrefix(update.Message.Text, "/") {
@@ -127,6 +131,8 @@ func handleCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 		handleAccountCommand(bot, msg)
 	case "substribe":
 		handleSubstribeCommand(bot, msg)
+	case "help":
+		handleHelpCommand(bot, msg)
 	default:
 		handleUnknownCommand(bot, msg)
 	}
@@ -176,7 +182,10 @@ func handleStartCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 		tgbotapi.NewKeyboardButtonRow(
 			tgbotapi.NewKeyboardButton("Guide"),
 			tgbotapi.NewKeyboardButton("Profile"),
+		),
+		tgbotapi.NewKeyboardButtonRow(
 			tgbotapi.NewKeyboardButton("Subscription"),
+			tgbotapi.NewKeyboardButton("Help"),
 		),
 	)
 
@@ -203,6 +212,11 @@ func handleAccountCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 
 	text := "Your account details are available here:\n" + link
 	reply := tgbotapi.NewMessage(msg.Chat.ID, text)
+	bot.Send(reply)
+}
+
+func handleHelpCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
+	reply := tgbotapi.NewMessage(msg.Chat.ID, "write your question to the chat")
 	bot.Send(reply)
 }
 
@@ -258,8 +272,10 @@ func handlePayCryptoPlan1Month(bot *tgbotapi.BotAPI, callback *tgbotapi.Callback
 		Fiat:         "RUB",
 		Amount:       "249",
 		Description:  "VPN subscription — 1 month",
-		Payload:      fmt.Sprintf("plan:1month:tg:%d", callback.From.ID),
+		HiddenMessage: "Subscription is paid successfully",
+		Payload:      fmt.Sprintf("plan:1month(tg_id=%d,username=%s)", callback.From.ID, callback.From.UserName),
 	})
+
 	if err != nil {
 		log.Printf("crypto createInvoice 1month: %v", err)
 		bot.Send(tgbotapi.NewMessage(callback.Message.Chat.ID, "Failed to create crypto invoice. Please try again later."))
@@ -268,6 +284,11 @@ func handlePayCryptoPlan1Month(bot *tgbotapi.BotAPI, callback *tgbotapi.Callback
 	if inv == nil {
 		bot.Send(tgbotapi.NewMessage(callback.Message.Chat.ID, "Crypto payment is not configured. Contact support."))
 		return
+	}
+
+	ctx := context.Background()
+	if err := insertInvoiceStatus(ctx, inv.InvoiceID, int64(callback.From.ID), inv.Payload); err != nil {
+		log.Printf("insertInvoiceStatus 1month: %v", err)
 	}
 
 	text := "Pay for 1 month subscription (249 ₽):\n" + inv.BotInvoiceURL
@@ -285,8 +306,10 @@ func handlePayCryptoPlan3Months(bot *tgbotapi.BotAPI, callback *tgbotapi.Callbac
 		Fiat:         "RUB",
 		Amount:       "699",
 		Description:  "VPN subscription — 3 months",
-		Payload:      fmt.Sprintf("plan:3months:tg:%d", callback.From.ID),
+		HiddenMessage: "Subscription is paid successfully",
+		Payload:      fmt.Sprintf("plan:3months(tg_id=%d,username=%s)", callback.From.ID, callback.From.UserName),
 	})
+	
 	if err != nil {
 		log.Printf("crypto createInvoice 3months: %v", err)
 		bot.Send(tgbotapi.NewMessage(callback.Message.Chat.ID, "Failed to create crypto invoice. Please try again later."))
@@ -295,6 +318,11 @@ func handlePayCryptoPlan3Months(bot *tgbotapi.BotAPI, callback *tgbotapi.Callbac
 	if inv == nil {
 		bot.Send(tgbotapi.NewMessage(callback.Message.Chat.ID, "Crypto payment is not configured. Contact support."))
 		return
+	}
+
+	ctx := context.Background()
+	if err := insertInvoiceStatus(ctx, inv.InvoiceID, int64(callback.From.ID), inv.Payload); err != nil {
+		log.Printf("insertInvoiceStatus 3months: %v", err)
 	}
 
 	text := "Pay for 3 months subscription (699 ₽):\n" + inv.BotInvoiceURL
@@ -329,7 +357,7 @@ func handleSub1WeekTest(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery) 
 	}
 
 	// apply test period
-	if err := Subscribe(ctx, username, telegramID, "1week_test"); err != nil {
+	if err := Subscribe(ctx, telegramID, "1week_test"); err != nil {
 		log.Printf("subscribe 1week_test failed for %s: %v", username, err)
 		bot.Send(tgbotapi.NewMessage(callback.Message.Chat.ID, "Failed: "+err.Error()))
 		return
@@ -407,7 +435,7 @@ func handleSuccessfulStarsPayment(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 		username = fmt.Sprintf("tg-%d", telegramID)
 	}
 
-	if err := Subscribe(ctx, username, telegramID, plan); err != nil {
+	if err := Subscribe(ctx, telegramID, plan); err != nil {
 		log.Printf("subscribe %s after payment failed for %s: %v", plan, username, err)
 		bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Payment received but activation failed: "+err.Error()+". Contact support."))
 		return

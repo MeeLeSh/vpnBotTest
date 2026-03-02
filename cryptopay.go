@@ -8,7 +8,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -38,13 +42,14 @@ type Invoice struct {
 
 // CreateInvoiceOpts are options for creating a Crypto Pay invoice.
 type CreateInvoiceOpts struct {
-	CurrencyType string `json:"currency_type,omitempty"` // "crypto" or "fiat", default "crypto"
-	Asset        string `json:"asset,omitempty"`        // required if currency_type is "crypto": USDT, TON, BTC, etc.
-	Fiat         string `json:"fiat,omitempty"`         // required if currency_type is "fiat": RUB, USD, EUR, etc.
-	Amount       string `json:"amount"`                 // e.g. "125.50"
-	Description  string `json:"description,omitempty"`
-	Payload      string `json:"payload,omitempty"`
-	ExpiresIn    int    `json:"expires_in,omitempty"`   // seconds 1–2678400
+	CurrencyType   string `json:"currency_type,omitempty"` // "crypto" or "fiat", default "crypto"
+	Asset          string `json:"asset,omitempty"`        // required if currency_type is "crypto": USDT, TON, BTC, etc.
+	Fiat           string `json:"fiat,omitempty"`         // required if currency_type is "fiat": RUB, USD, EUR, etc.
+	Amount         string `json:"amount"`                 // e.g. "125.50"
+	Description    string `json:"description,omitempty"`
+	HiddenMessage  string `json:"hidden_message"`
+	Payload        string `json:"payload,omitempty"`
+	ExpiresIn      int    `json:"expires_in,omitempty"`   // seconds 1–2678400
 }
 
 type createInvoiceResponse struct {
@@ -100,4 +105,81 @@ func CreateInvoice(ctx context.Context, opts CreateInvoiceOpts) (*Invoice, error
 	}
 
 	return &out.Result, nil
+}
+
+type getInvoicesResponse struct {
+	OK     bool            `json:"ok"`
+	Result json.RawMessage `json:"result,omitempty"` // API may return array or object
+	Error  json.RawMessage `json:"error,omitempty"`
+}
+
+// GetInvoices returns invoices created by your app for the given invoice IDs (see https://help.send.tg/en/articles/10279948-crypto-pay-api).
+// Returns (nil, nil) if token is not set or invoiceIDs is empty.
+func GetInvoices(ctx context.Context, invoiceIDs []int64) ([]Invoice, error) {
+	if cryptoPayAPIToken == "" {
+		return nil, nil
+	}
+	if len(invoiceIDs) == 0 {
+		return nil, nil
+	}
+
+	base := cryptoPayAPIBase
+	if cryptoPayTestnet == "1" {
+		base = cryptoPayAPITestnet
+	}
+
+	// build invoice_ids param as comma-separated list
+	idsStr := make([]string, len(invoiceIDs))
+	for i, id := range invoiceIDs {
+		idsStr[i] = strconv.FormatInt(id, 10)
+	}
+	values := url.Values{}
+	values.Set("invoice_ids", strings.Join(idsStr, ","))
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/getInvoices?"+values.Encode(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("cryptopay: new request: %w", err)
+	}
+	req.Header.Set("Crypto-Pay-API-Token", cryptoPayAPIToken)
+
+	resp, err := cryptoPayHTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("cryptopay: do request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var out getInvoicesResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, fmt.Errorf("cryptopay: decode getInvoices response: %w", err)
+	}
+
+	if !out.OK {
+		errMsg := string(out.Error)
+		if errMsg == "" {
+			errMsg = "unknown"
+		}
+		return nil, fmt.Errorf("cryptopay: api error: %s", errMsg)
+	}
+
+	var invoices []Invoice
+	if len(out.Result) == 0 {
+		return invoices, nil
+	}
+
+	// result can be either a JSON array of invoices or an object with "items":[...]
+	// try array first
+	if err := json.Unmarshal(out.Result, &invoices); err == nil {
+		return invoices, nil
+	}
+
+	// then try {"items":[...]}
+	var withItems struct {
+		Items []Invoice `json:"items"`
+	}
+	if err := json.Unmarshal(out.Result, &withItems); err != nil {
+		log.Printf("cryptopay: getInvoices unmarshal result failed, raw=%s, err=%v", string(out.Result), err)
+		return nil, nil
+	}
+
+	return withItems.Items, nil
 }

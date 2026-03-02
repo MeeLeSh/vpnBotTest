@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
+	"github.com/google/uuid"
 	remapi "github.com/Jolymmiles/remnawave-api-go/v2/api"
 )
 
@@ -32,7 +34,8 @@ func initRemnawaveClient() error {
 	return nil
 }
 
-// generateAccountLink creates a user in Remnawave and returns its SubscriptionUrl.
+// generateAccountLink creates (or reuses) a user in Remnawave and returns its SubscriptionUrl.
+// It first looks up the user by Telegram ID, then falls back to creating a new user.
 func generateAccountLink(username string, telegramID int64) string {
 	if remnawaveClient == nil {
 		log.Printf("Remnawave client not initialized (REMNAWAVE_PANEL_URL/REMNAWAVE_API_TOKEN not set)")
@@ -41,21 +44,22 @@ func generateAccountLink(username string, telegramID int64) string {
 
 	ctx := context.Background()
 
-	// First, try to get existing user by username
-	getResp, err := remnawaveClient.Users().GetUserByUsername(ctx, username)
+	// First, try to get existing user by Telegram ID
+	getResp, err := remnawaveClient.Users().GetUserByTelegramId(ctx, strconv.FormatInt(telegramID, 10))
 	if err != nil {
-		log.Printf("failed to call Remnawave GetUserByUsername %s: %v", username, err)
-	}
-
-	if getResp != nil {
-		switch r := getResp.(type) {
-		case *remapi.UserResponse:
-			// User already exists, reuse its subscription URL
-			return r.Response.SubscriptionUrl
+		log.Printf("failed to call Remnawave GetUserByTelegramId %d: %v", telegramID, err)
+	} else if getResp != nil {
+		if r, ok := getResp.(*remapi.UsersResponse); ok {
+			if len(r.Response) > 0 {
+				// User already exists, reuse its subscription URL
+				return r.Response[0].SubscriptionUrl
+			}
+		} else {
+			log.Printf("unexpected GetUserByTelegramId response type: %T", getResp)
 		}
 	}
 
-	// Not found → create a new user
+	// Not found or lookup failed → create a new user
 	createResp, err := remnawaveClient.Users().CreateUser(ctx, &remapi.CreateUserRequest{
 		Username:   username,
 		ExpireAt:   time.Now(),
@@ -76,30 +80,35 @@ func generateAccountLink(username string, telegramID int64) string {
 
 // Subscribe applies a subscription in Remnawave by extending the user's ExpireAt.
 // Plan is one of: "1week_test", "1month", "3months".
-func Subscribe(ctx context.Context, username string, telegramID int64, plan string) error {
+// User is resolved by Telegram ID via Remnawave Users API.
+func Subscribe(ctx context.Context, telegramID int64, plan string) error {
 	if remnawaveClient == nil {
 		return nil
 	}
 
-	getResp, err := remnawaveClient.Users().GetUserByUsername(ctx, username)
+	// API expects Telegram ID as string.
+	getResp, err := remnawaveClient.Users().GetUserByTelegramId(ctx, strconv.FormatInt(telegramID, 10))
 	if err != nil {
 		return err
 	}
 
-	var userResp *remapi.UserResponse
+	var userUUID uuid.UUID
+	var expireAt time.Time
+
 	switch r := getResp.(type) {
-	case *remapi.UserResponse:
-		userResp = r
-	case *remapi.NotFoundError:
-		return fmt.Errorf("user not found in panel: get your account link first (Profile)")
+	case *remapi.UsersResponse:
+		if len(r.Response) == 0 {
+			return fmt.Errorf("user not found in panel: get your account link first (Profile)")
+		}
+		item := r.Response[0]
+		userUUID = item.UUID
+		expireAt = item.ExpireAt
 	default:
-		return nil
+		return fmt.Errorf("unexpected GetUserByTelegramId response type: %T", r)
 	}
 
-	userUUID := userResp.Response.UUID
-	expireAt := userResp.Response.ExpireAt
-
 	var extend time.Duration
+	log.Printf("plan: %s", plan)
 	switch plan {
 	case "1week_test":
 		extend = 7 * 24 * time.Hour

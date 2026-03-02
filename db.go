@@ -56,3 +56,41 @@ func markTestPeriodUsed(ctx context.Context, username string) error {
 	_, err := db.Exec(ctx, query, username)
 	return err
 }
+
+// getQueuedInvoiceIDs returns all invoice_id values from "invoice_queue".
+func getQueuedInvoiceIDs(ctx context.Context) ([]int64, error) {
+	const query = `SELECT invoice_id FROM "invoice_queue"`
+
+	rows, err := db.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return ids, nil
+}
+
+// insertInvoiceStatus saves a crypto invoice record to "invoice_queue" (id, invoice_id, telegramId, payload).
+func insertInvoiceStatus(ctx context.Context, invoiceID int64, telegramID int64, payload string) error {
+	const query = `INSERT INTO "invoice_queue" (invoice_id, "telegramId", payload) VALUES ($1, $2, $3)`
+	_, err := db.Exec(ctx, query, invoiceID, telegramID, payload)
+	return err
+}
+
+// deleteInvoiceStatusByInvoiceID removes the row from "invoice_queue" for the given invoice_id.
+func deleteInvoiceStatusByInvoiceID(ctx context.Context, invoiceID int64) error {
+	const query = `DELETE FROM "invoice_queue" WHERE invoice_id = $1`
+	_, err := db.Exec(ctx, query, invoiceID)
+	return err
+}
