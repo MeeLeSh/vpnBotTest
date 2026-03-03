@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS "UserQuestion" (
+    id SERIAL PRIMARY KEY,
+    "telegramId" BIGINT NOT NULL,
+    message TEXT NOT NULL,
+    "messageDate" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

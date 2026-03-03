@@ -95,6 +95,8 @@ func Run() {
 			update.Message.Text = "/substribe"
 		case "Help":
 			update.Message.Text = "/help"
+		case "Questions":
+			update.Message.Text = "/questions"
 		}
 
 		if update.Message.IsCommand() || strings.HasPrefix(update.Message.Text, "/") {
@@ -102,7 +104,8 @@ func Run() {
 			continue
 		}
 
-		HandleMessage(bot, update.Message)
+		// Delegate non-command message handling (including help state) to command handlers.
+		HandleState(bot, update.Message)
 	}
 }
 

@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 )
 
 // Config holds environment-based configuration for the bot.
@@ -17,6 +18,7 @@ type Config struct {
 	RemnawaveAPIToken      string
 	Stars1Month            int
 	Stars3Months           int
+	AdminTelegramID        int64
 }
 
 // AppConfig holds the loaded configuration for global access.
@@ -42,6 +44,14 @@ func LoadConfig() (*Config, error) {
 	}
 	if cfg.DatabaseURL == "" {
 		return nil, fmt.Errorf("DATABASE_URL environment variable is not set")
+	}
+
+	if adminIDStr := os.Getenv("TELEGRAM_ADMIN_ID"); adminIDStr != "" {
+		adminID, err := strconv.ParseInt(adminIDStr, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("TELEGRAM_ADMIN_ID is invalid: %w", err)
+		}
+		cfg.AdminTelegramID = adminID
 	}
 
 	return cfg, nil

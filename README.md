@@ -39,6 +39,7 @@ $env:REMNAWAVE_API_TOKEN  = "YOUR_REMNAWAVE_JWT_TOKEN"
 # Optional: Crypto Pay (for "Pay crypto" subscription)
 $env:CRYPTO_PAY_API_TOKEN = "YOUR_CRYPTO_PAY_APP_TOKEN"
 $env:CRYPTO_PAY_TESTNET   = "1"                           # set to 1 for testnet
+$env:TELEGRAM_ADMIN_ID    = "123456789"                   # optional: numeric Telegram user ID for admin-only Questions button
 ```
 
 **How to get `CRYPTO_PAY_API_TOKEN`:**
@@ -101,6 +102,8 @@ You can type commands or use the reply keyboard buttons after `/start`.
 | `/instruction` (Guide) | Sends step-by-step instructions (text is defined in `vpnbot/telegram/command_handlers.go`, in `handleInstructionCommand`). |
 | `/account` (Profile) | Returns your VPN account details link. If you don’t have one yet, the bot creates a Remnawave user and stores the link. |
 | `/substribe` (Subscription) | Opens subscription flow (see below). |
+| `/help` (Help) | Asks the user to write a question; the next non-command message is stored in the `UserQuestion` table with Telegram ID and timestamp. |
+| `/questions` (Questions, admin only) | Visible as a button only for the admin (when `TELEGRAM_ADMIN_ID` is set). Sends the admin a list of all stored questions and Telegram IDs, each with an **Answer** button that opens a chat with that user. |
 
 ### Subscription flow
 
@@ -109,6 +112,16 @@ You can type commands or use the reply keyboard buttons after `/start`.
 3. **1 month / 3 months** — Choose payment method:
    - **Pay Telegram Stars** — Bot sends a Telegram Stars (XTR) invoice. After payment, the subscription is applied in Remnawave.
    - **Pay crypto** — Bot creates a Crypto Pay invoice and sends the payment link (requires `CRYPTO_PAY_API_TOKEN`).
+
+### Help & user questions
+
+- When a user presses **Help** (or sends `/help`), the bot replies with a prompt to write a question.  
+- The next plain text message from that user is saved into the `UserQuestion` table together with their Telegram ID and the message date.  
+- When the admin presses **Questions** (or sends `/questions`), the bot sends blocks like:
+
+  - question text  
+  - Telegram ID  
+  - an **Answer** inline button that opens the Telegram chat with that user.
 
 ## 7. Stopping the services
 

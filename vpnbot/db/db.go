@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"time"
 
 	pgx "github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -16,6 +17,14 @@ type VpnUser struct {
 	TelegramID         int64
 	AccountDetailsLink string
 	IsUsedTestPeriod   bool
+}
+
+// UserQuestion represents a user question sent after pressing Help.
+type UserQuestion struct {
+	ID          int64
+	TelegramID  int64
+	Message     string
+	MessageDate time.Time
 }
 
 // Init initializes the global database connection pool using the provided database URL.
@@ -104,5 +113,36 @@ func DeleteInvoiceStatusByInvoiceID(ctx context.Context, invoiceID int64) error 
 	const query = `DELETE FROM "invoice_queue" WHERE invoice_id = $1`
 	_, err := pool.Exec(ctx, query, invoiceID)
 	return err
+}
+
+// InsertUserQuestion saves a user question to "UserQuestion" (telegramId, message, messageDate).
+func InsertUserQuestion(ctx context.Context, telegramID int64, message string, messageDate time.Time) error {
+	const query = `INSERT INTO "UserQuestion" ("telegramId", message, "messageDate") VALUES ($1, $2, $3)`
+	_, err := pool.Exec(ctx, query, telegramID, message, messageDate)
+	return err
+}
+
+// GetAllUserQuestions returns all stored user questions ordered by most recent first.
+func GetAllUserQuestions(ctx context.Context) ([]UserQuestion, error) {
+	const query = `SELECT id, "telegramId", message, "messageDate" FROM "UserQuestion" ORDER BY "messageDate" DESC`
+
+	rows, err := pool.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var qs []UserQuestion
+	for rows.Next() {
+		var q UserQuestion
+		if err := rows.Scan(&q.ID, &q.TelegramID, &q.Message, &q.MessageDate); err != nil {
+			return nil, err
+		}
+		qs = append(qs, q)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return qs, nil
 }
 
