@@ -1,0 +1,1 @@
+ALTER TABLE "UserQuestion" DROP COLUMN IF EXISTS answer;

@@ -25,6 +25,7 @@ type UserQuestion struct {
 	TelegramID  int64
 	Message     string
 	MessageDate time.Time
+	Answer      string // admin reply; empty until answered
 }
 
 // Init initializes the global database connection pool using the provided database URL.
@@ -124,7 +125,7 @@ func InsertUserQuestion(ctx context.Context, telegramID int64, message string, m
 
 // GetAllUserQuestions returns all stored user questions ordered by most recent first.
 func GetAllUserQuestions(ctx context.Context) ([]UserQuestion, error) {
-	const query = `SELECT id, "telegramId", message, "messageDate" FROM "UserQuestion" ORDER BY "messageDate" DESC`
+	const query = `SELECT id, "telegramId", message, "messageDate", COALESCE(answer, '') FROM "UserQuestion" ORDER BY "messageDate" DESC`
 
 	rows, err := pool.Query(ctx, query)
 	if err != nil {
@@ -135,7 +136,7 @@ func GetAllUserQuestions(ctx context.Context) ([]UserQuestion, error) {
 	var qs []UserQuestion
 	for rows.Next() {
 		var q UserQuestion
-		if err := rows.Scan(&q.ID, &q.TelegramID, &q.Message, &q.MessageDate); err != nil {
+		if err := rows.Scan(&q.ID, &q.TelegramID, &q.Message, &q.MessageDate, &q.Answer); err != nil {
 			return nil, err
 		}
 		qs = append(qs, q)
@@ -144,5 +145,50 @@ func GetAllUserQuestions(ctx context.Context) ([]UserQuestion, error) {
 		return nil, err
 	}
 	return qs, nil
+}
+
+// GetUnansweredUserQuestions returns questions where answer is null or empty, ordered by most recent first.
+func GetUnansweredUserQuestions(ctx context.Context) ([]UserQuestion, error) {
+	const query = `SELECT id, "telegramId", message, "messageDate", COALESCE(answer, '') FROM "UserQuestion" WHERE (answer IS NULL OR TRIM(answer) = '') ORDER BY "messageDate" DESC`
+
+	rows, err := pool.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var qs []UserQuestion
+	for rows.Next() {
+		var q UserQuestion
+		if err := rows.Scan(&q.ID, &q.TelegramID, &q.Message, &q.MessageDate, &q.Answer); err != nil {
+			return nil, err
+		}
+		qs = append(qs, q)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return qs, nil
+}
+
+// GetUserQuestionByID returns a single user question by its ID.
+func GetUserQuestionByID(ctx context.Context, id int64) (*UserQuestion, error) {
+	const query = `SELECT id, "telegramId", message, "messageDate", COALESCE(answer, '') FROM "UserQuestion" WHERE id = $1`
+	row := pool.QueryRow(ctx, query, id)
+	var q UserQuestion
+	if err := row.Scan(&q.ID, &q.TelegramID, &q.Message, &q.MessageDate, &q.Answer); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &q, nil
+}
+
+// UpdateUserQuestionAnswer sets the answer for the given question ID.
+func UpdateUserQuestionAnswer(ctx context.Context, questionID int64, answer string) error {
+	const query = `UPDATE "UserQuestion" SET answer = $1 WHERE id = $2`
+	_, err := pool.Exec(ctx, query, answer, questionID)
+	return err
 }
 

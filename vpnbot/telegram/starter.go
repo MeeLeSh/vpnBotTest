@@ -61,31 +61,33 @@ func Run() {
 
 		// Handle callback queries from inline buttons
 		if update.CallbackQuery != nil {
-			switch update.CallbackQuery.Data {
-			case "plan_1week":
-				// 1 week test: apply immediately, no payment step
+			data := update.CallbackQuery.Data
+			switch {
+			case data == "plan_1week":
 				HandleSub1WeekTest(bot, update.CallbackQuery)
-			case "plan_1month":
+			case data == "plan_1month":
 				HandlePlanChoice(bot, update.CallbackQuery, "1month")
-			case "plan_3months":
+			case data == "plan_3months":
 				HandlePlanChoice(bot, update.CallbackQuery, "3months")
-			case "pay_stars_1month":
+			case data == "pay_stars_1month":
 				HandlePayStarsPlan1Month(bot, update.CallbackQuery)
-			case "pay_stars_3months":
+			case data == "pay_stars_3months":
 				HandlePayStarsPlan3Months(bot, update.CallbackQuery)
-			case "pay_crypto_1month":
+			case data == "pay_crypto_1month":
 				HandlePayCryptoPlan1Month(bot, update.CallbackQuery)
-			case "pay_crypto_3months":
+			case data == "pay_crypto_3months":
 				HandlePayCryptoPlan3Months(bot, update.CallbackQuery)
-			continue
+			case strings.HasPrefix(data, "reply_to:"):
+				HandleStartReplyToUser(bot, update.CallbackQuery)
 			}
+			continue
 		}
 
 		if update.Message == nil {
 			continue
 		}
 
-		// Map button labels to commands so buttons can use friendly names
+		// Map button labels to commands
 		switch update.Message.Text {
 		case "Guide":
 			update.Message.Text = "/instruction"
@@ -97,6 +99,8 @@ func Run() {
 			update.Message.Text = "/help"
 		case "Questions":
 			update.Message.Text = "/questions"
+		case "Cancel":
+			update.Message.Text = "/cancel"
 		}
 
 		if update.Message.IsCommand() || strings.HasPrefix(update.Message.Text, "/") {

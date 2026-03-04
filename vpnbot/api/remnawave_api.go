@@ -128,10 +128,26 @@ func Subscribe(ctx context.Context, telegramID int64, plan string) error {
 		newExpireAt = expireAt.Add(extend)
 	}
 
-	_, err = remnawaveClient.Users().UpdateUser(ctx, &remapi.UpdateUserRequest{
-		UUID:     remapi.NewOptUUID(userUUID),
-		ExpireAt: remapi.NewOptDateTime(newExpireAt),
-	})
+	// Set a single squad from config when configured.
+	var activeSquads []uuid.UUID
+	if config.AppConfig != nil && config.AppConfig.RemnawaveSquadID != "" {
+		squadUUID, err := uuid.Parse(config.AppConfig.RemnawaveSquadID)
+		if err != nil {
+			log.Printf("invalid REMNAWAVE_SQUAD_ID UUID %q: %v", config.AppConfig.RemnawaveSquadID, err)
+		} else {
+			activeSquads = []uuid.UUID{squadUUID}
+		}
+	}
+
+	req := &remapi.UpdateUserRequest{
+		UUID:            remapi.NewOptUUID(userUUID),
+		ExpireAt:        remapi.NewOptDateTime(newExpireAt),
+		HwidDeviceLimit: remapi.NewOptNilInt(3),
+	}
+	if len(activeSquads) > 0 {
+		req.ActiveInternalSquads = activeSquads
+	}
+	_, err = remnawaveClient.Users().UpdateUser(ctx, req)
 	return err
 }
 

@@ -1,0 +1,1 @@
+ALTER TABLE "UserQuestion" ADD COLUMN IF NOT EXISTS answer TEXT;
