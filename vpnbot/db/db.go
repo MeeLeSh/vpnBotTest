@@ -50,6 +50,28 @@ func Close() {
 	}
 }
 
+// GetAllVpnUserTelegramIDs returns all distinct Telegram user IDs from VpnUser (for broadcast).
+func GetAllVpnUserTelegramIDs(ctx context.Context) ([]int64, error) {
+	const query = `SELECT DISTINCT "telegramid" FROM "VpnUser"`
+	rows, err := pool.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return ids, nil
+}
+
 func GetVpnUserByUsername(ctx context.Context, username string) (*VpnUser, error) {
 	const query = `SELECT username, telegramId, accountDetailsLink, "isUsedTestPeriod" FROM "VpnUser" WHERE username = $1`
 

@@ -17,6 +17,7 @@ type Config struct {
 	RemnawavePanelURL             string
 	RemnawaveAPIToken              string
 	RemnawaveSquadID  string // internal squad UUID to add when user subscribes (optional)
+	GuideText         string // text sent when user taps Guide /instruction (optional, set via GUIDE_TEXT)
 	Stars1Month                   int
 	Stars3Months           int
 	AdminTelegramID        int64
@@ -37,6 +38,7 @@ func LoadConfig() (*Config, error) {
 		RemnawavePanelURL:             os.Getenv("REMNAWAVE_PANEL_URL"),
 		RemnawaveAPIToken:              os.Getenv("REMNAWAVE_API_TOKEN"),
 		RemnawaveSquadID:  os.Getenv("REMNAWAVE_SQUAD_ID"),
+		GuideText:         os.Getenv("GUIDE_TEXT"),
 		Stars1Month:                   1,
 		Stars3Months:           3,
 	}

@@ -42,6 +42,8 @@ $env:REMNAWAVE_SQUAD_ID   = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 $env:CRYPTO_PAY_API_TOKEN = "YOUR_CRYPTO_PAY_APP_TOKEN"
 $env:CRYPTO_PAY_TESTNET   = "1"                           # set to 1 for testnet
 $env:TELEGRAM_ADMIN_ID    = "123456789"                   # optional: numeric Telegram user ID for admin-only Questions button
+# Optional: text sent when user taps Guide
+$env:GUIDE_TEXT           = "Here is what you should do:\n\n1. Step one description.\n2. Step two description.\n3. Step three description."
 ```
 
 **How to get `CRYPTO_PAY_API_TOKEN`:**
@@ -101,7 +103,7 @@ You can type commands or use the reply keyboard buttons after `/start`.
 | Command / Button | Description |
 |------------------|-------------|
 | `/start` | Welcome message and reply keyboard: **Guide**, **Profile**, **Subscription**, **Help** (and **Questions** for admin). Ensures the user exists in the DB and has an account link (creates one via Remnawave if needed). |
-| `/instruction` (Guide) | Sends step-by-step instructions (text in `vpnbot/telegram/command_handlers.go`). |
+| `/instruction` (Guide) | Sends step-by-step instructions. Text is set via **`GUIDE_TEXT`** (env); if unset, a default placeholder is used. |
 | `/account` (Profile) | Returns your VPN account details link. If you don’t have one yet, the bot creates a Remnawave user and stores the link. |
 | `/substribe` (Subscription) | Opens subscription flow (see below). |
 | `/help` (Help) | Asks the user to write a question; shows a **Cancel** button. The next message is saved as a question in the DB, or **Cancel** aborts. Main keyboard is restored after sending. |

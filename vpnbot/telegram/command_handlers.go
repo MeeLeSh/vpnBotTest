@@ -15,20 +15,23 @@ import (
 	"vpnBot/vpnbot/db"
 )
 
-// newMainReplyKeyboard returns the main menu keyboard (Guide, Profile, Subscription, Help, Questions for admin).
+// newMainReplyKeyboard returns the main menu keyboard (Guide, Profile, Subscription, Help, Questions and Send to all for admin).
 func newMainReplyKeyboard(user *tgbotapi.User) tgbotapi.ReplyKeyboardMarkup {
 	row1 := tgbotapi.NewKeyboardButtonRow(
 		tgbotapi.NewKeyboardButton("Guide"),
 		tgbotapi.NewKeyboardButton("Profile"),
 	)
-	row2Buttons := []tgbotapi.KeyboardButton{
+	row2 := tgbotapi.NewKeyboardButtonRow(
 		tgbotapi.NewKeyboardButton("Subscription"),
 		tgbotapi.NewKeyboardButton("Help"),
-	}
+	)
 	if config.AppConfig != nil && config.AppConfig.AdminTelegramID != 0 && user != nil && int64(user.ID) == config.AppConfig.AdminTelegramID {
-		row2Buttons = append(row2Buttons, tgbotapi.NewKeyboardButton("Questions"))
+		row3 := tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton("Questions"),
+			tgbotapi.NewKeyboardButton("Send to all"),
+		)
+		return tgbotapi.NewReplyKeyboard(row1, row2, row3)
 	}
-	row2 := tgbotapi.NewKeyboardButtonRow(row2Buttons...)
 	return tgbotapi.NewReplyKeyboard(row1, row2)
 }
 
@@ -50,6 +53,8 @@ func HandleCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 		handleHelpCommand(bot, msg)
 	case "questions":
 		handleQuestionsCommand(bot, msg)
+	case "broadcast":
+		handleBroadcastCommand(bot, msg)
 	case "cancel":
 		handleCancelCommand(bot, msg)
 	default:
@@ -86,14 +91,21 @@ func handleCancelCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 		bot.Send(tgbotapi.NewMessage(chatID, "Answer cancelled."))
 		return
 	}
+	if IsAwaitingBroadcast(chatID) {
+		ClearAwaitingBroadcast(chatID)
+		reply := tgbotapi.NewMessage(chatID, "Broadcast cancelled.")
+		reply.ReplyMarkup = newMainReplyKeyboard(msg.From)
+		bot.Send(reply)
+		return
+	}
 	bot.Send(tgbotapi.NewMessage(chatID, "There is nothing to cancel."))
 }
 
 func handleInstructionCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
-	text := "Here is what you should do:\n" +
-		"1. Step one description.\n" +
-		"2. Step two description.\n" +
-		"3. Step three description."
+	text := "Here is what you should do:\n\n1. Step one description.\n2. Step two description.\n3. Step three description."
+	if config.AppConfig != nil && config.AppConfig.GuideText != "" {
+		text = config.AppConfig.GuideText
+	}
 	reply := tgbotapi.NewMessage(msg.Chat.ID, text)
 	bot.Send(reply)
 }
@@ -113,6 +125,19 @@ func handleHelpCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	SetAwaitingHelpQuestion(msg.Chat.ID)
 	keyboard := tgbotapi.NewReplyKeyboard(tgbotapi.NewKeyboardButtonRow(tgbotapi.NewKeyboardButton("Cancel")))
 	reply := tgbotapi.NewMessage(msg.Chat.ID, "Write your question to the chat")
+	reply.ReplyMarkup = keyboard
+	bot.Send(reply)
+}
+
+func handleBroadcastCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
+	if config.AppConfig == nil || config.AppConfig.AdminTelegramID == 0 || int64(msg.From.ID) != config.AppConfig.AdminTelegramID {
+		reply := tgbotapi.NewMessage(msg.Chat.ID, "This command is only available to the bot admin.")
+		bot.Send(reply)
+		return
+	}
+	SetAwaitingBroadcast(msg.Chat.ID)
+	keyboard := tgbotapi.NewReplyKeyboard(tgbotapi.NewKeyboardButtonRow(tgbotapi.NewKeyboardButton("Cancel")))
+	reply := tgbotapi.NewMessage(msg.Chat.ID, "Type the message to send to all users, or tap Cancel to abort.")
 	reply.ReplyMarkup = keyboard
 	bot.Send(reply)
 }
@@ -181,9 +206,35 @@ func HandleMessage(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	bot.Send(reply)
 }
 
-// HandleState processes non-command messages: help question, admin answer, or default.
+// HandleState processes non-command messages: help question, admin answer, broadcast, or default.
 func HandleState(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	ctx := context.Background()
+
+	// Admin sending broadcast message (after tapping Send to all).
+	if IsAwaitingBroadcast(msg.Chat.ID) && msg.Text != "" {
+		ClearAwaitingBroadcast(msg.Chat.ID)
+		ids, err := db.GetAllVpnUserTelegramIDs(ctx)
+		if err != nil {
+			log.Printf("failed to get user IDs for broadcast: %v", err)
+			reply := tgbotapi.NewMessage(msg.Chat.ID, "Failed to load users. Please try again later.")
+			reply.ReplyMarkup = newMainReplyKeyboard(msg.From)
+			bot.Send(reply)
+			return
+		}
+		var sent, failed int
+		for _, id := range ids {
+			if _, err := bot.Send(tgbotapi.NewMessage(id, msg.Text)); err != nil {
+				log.Printf("broadcast to %d: %v", id, err)
+				failed++
+			} else {
+				sent++
+			}
+		}
+		reply := tgbotapi.NewMessage(msg.Chat.ID, fmt.Sprintf("Message sent to %d user(s). Failed: %d.", sent, failed))
+		reply.ReplyMarkup = newMainReplyKeyboard(msg.From)
+		bot.Send(reply)
+		return
+	}
 
 	// Admin sending answer to a question (after clicking Answer).
 	if questionID, ok := GetAwaitingAnswer(msg.Chat.ID); ok && msg.Text != "" {

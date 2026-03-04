@@ -99,6 +99,8 @@ func Run() {
 			update.Message.Text = "/help"
 		case "Questions":
 			update.Message.Text = "/questions"
+		case "Send to all":
+			update.Message.Text = "/broadcast"
 		case "Cancel":
 			update.Message.Text = "/cancel"
 		}
