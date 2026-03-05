@@ -15,20 +15,20 @@ import (
 	"vpnBot/vpnbot/db"
 )
 
-// newMainReplyKeyboard returns the main menu keyboard (Guide, Profile, Subscription, Help, Questions and Send to all for admin).
+// newMainReplyKeyboard returns the main menu keyboard (Инструкция, Профиль, Подписка, Помощь, Вопросы и Рассылка для админа).
 func newMainReplyKeyboard(user *tgbotapi.User) tgbotapi.ReplyKeyboardMarkup {
 	row1 := tgbotapi.NewKeyboardButtonRow(
-		tgbotapi.NewKeyboardButton("Guide"),
-		tgbotapi.NewKeyboardButton("Profile"),
+		tgbotapi.NewKeyboardButton("Инструкция"),
+		tgbotapi.NewKeyboardButton("Профиль"),
 	)
 	row2 := tgbotapi.NewKeyboardButtonRow(
-		tgbotapi.NewKeyboardButton("Subscription"),
-		tgbotapi.NewKeyboardButton("Help"),
+		tgbotapi.NewKeyboardButton("Подписка"),
+		tgbotapi.NewKeyboardButton("Помощь"),
 	)
 	if config.AppConfig != nil && config.AppConfig.AdminTelegramID != 0 && user != nil && int64(user.ID) == config.AppConfig.AdminTelegramID {
 		row3 := tgbotapi.NewKeyboardButtonRow(
-			tgbotapi.NewKeyboardButton("Questions"),
-			tgbotapi.NewKeyboardButton("Send to all"),
+			tgbotapi.NewKeyboardButton("Вопросы"),
+			tgbotapi.NewKeyboardButton("Рассылка"),
 		)
 		return tgbotapi.NewReplyKeyboard(row1, row2, row3)
 	}
@@ -69,8 +69,8 @@ func handleStartCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	}
 	_ = link // link ensured for reply keyboard / account state
 
-	text := "Welcome! This bot helps you with VPN and account management.\n" +
-		"For detailed step-by-step instructions, use the buttons below or type commands."
+	text := "Добро пожаловать! Этот бот поможет вам управлять VPN и вашим аккаунтом.\n" +
+		"Для подробной пошаговой инструкции используйте кнопки ниже или команды."
 
 	reply := tgbotapi.NewMessage(msg.Chat.ID, text)
 	reply.ReplyMarkup = newMainReplyKeyboard(msg.From)
@@ -81,30 +81,33 @@ func handleCancelCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	chatID := msg.Chat.ID
 	if IsAwaitingHelpQuestion(chatID) {
 		ClearAwaitingHelpQuestion(chatID)
-		reply := tgbotapi.NewMessage(chatID, "Question cancelled. You can continue using the menu.")
+		reply := tgbotapi.NewMessage(chatID, "Вопрос отменён. Вы можете продолжать пользоваться меню.")
 		reply.ReplyMarkup = newMainReplyKeyboard(msg.From)
 		bot.Send(reply)
 		return
 	}
 	if _, ok := GetAwaitingAnswer(chatID); ok {
 		ClearAwaitingAnswer(chatID)
-		bot.Send(tgbotapi.NewMessage(chatID, "Answer cancelled."))
-		return
-	}
-	if IsAwaitingBroadcast(chatID) {
-		ClearAwaitingBroadcast(chatID)
-		reply := tgbotapi.NewMessage(chatID, "Broadcast cancelled.")
+		reply := tgbotapi.NewMessage(chatID, "Ответ отменён.")
 		reply.ReplyMarkup = newMainReplyKeyboard(msg.From)
 		bot.Send(reply)
 		return
 	}
-	bot.Send(tgbotapi.NewMessage(chatID, "There is nothing to cancel."))
+	if IsAwaitingBroadcast(chatID) {
+		ClearAwaitingBroadcast(chatID)
+		reply := tgbotapi.NewMessage(chatID, "Рассылка отменена.")
+		reply.ReplyMarkup = newMainReplyKeyboard(msg.From)
+		bot.Send(reply)
+		return
+	}
+	bot.Send(tgbotapi.NewMessage(chatID, "Отменять сейчас нечего."))
 }
 
 func handleInstructionCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
-	text := "Here is what you should do:\n\n1. Step one description.\n2. Step two description.\n3. Step three description."
 	if config.AppConfig != nil && config.AppConfig.GuideText != "" {
 		text = config.AppConfig.GuideText
+		// Treat literal \n in env as newline (shells often don't expand escape sequences).
+		text = strings.ReplaceAll(text, "\\n", "\n")
 	}
 	reply := tgbotapi.NewMessage(msg.Chat.ID, text)
 	bot.Send(reply)
@@ -116,28 +119,28 @@ func handleAccountCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 		return
 	}
 
-	text := "Your account details are available here:\n" + link
+	text := "Ссылка на ваш VPN‑аккаунт:\n" + link
 	reply := tgbotapi.NewMessage(msg.Chat.ID, text)
 	bot.Send(reply)
 }
 
 func handleHelpCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	SetAwaitingHelpQuestion(msg.Chat.ID)
-	keyboard := tgbotapi.NewReplyKeyboard(tgbotapi.NewKeyboardButtonRow(tgbotapi.NewKeyboardButton("Cancel")))
-	reply := tgbotapi.NewMessage(msg.Chat.ID, "Write your question to the chat")
+	keyboard := tgbotapi.NewReplyKeyboard(tgbotapi.NewKeyboardButtonRow(tgbotapi.NewKeyboardButton("Отмена")))
+	reply := tgbotapi.NewMessage(msg.Chat.ID, "Напишите свой вопрос в этот чат.")
 	reply.ReplyMarkup = keyboard
 	bot.Send(reply)
 }
 
 func handleBroadcastCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	if config.AppConfig == nil || config.AppConfig.AdminTelegramID == 0 || int64(msg.From.ID) != config.AppConfig.AdminTelegramID {
-		reply := tgbotapi.NewMessage(msg.Chat.ID, "This command is only available to the bot admin.")
+		reply := tgbotapi.NewMessage(msg.Chat.ID, "Эта команда доступна только администратору бота.")
 		bot.Send(reply)
 		return
 	}
 	SetAwaitingBroadcast(msg.Chat.ID)
-	keyboard := tgbotapi.NewReplyKeyboard(tgbotapi.NewKeyboardButtonRow(tgbotapi.NewKeyboardButton("Cancel")))
-	reply := tgbotapi.NewMessage(msg.Chat.ID, "Type the message to send to all users, or tap Cancel to abort.")
+	keyboard := tgbotapi.NewReplyKeyboard(tgbotapi.NewKeyboardButtonRow(tgbotapi.NewKeyboardButton("Отмена")))
+	reply := tgbotapi.NewMessage(msg.Chat.ID, "Введите сообщение для рассылки всем пользователям или нажмите «Отмена», чтобы прервать.")
 	reply.ReplyMarkup = keyboard
 	bot.Send(reply)
 }
@@ -145,7 +148,7 @@ func handleBroadcastCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 func handleQuestionsCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	// Only bot admin is allowed to see questions.
 	if config.AppConfig == nil || config.AppConfig.AdminTelegramID == 0 || int64(msg.From.ID) != config.AppConfig.AdminTelegramID {
-		reply := tgbotapi.NewMessage(msg.Chat.ID, "This command is only available to the bot admin.")
+		reply := tgbotapi.NewMessage(msg.Chat.ID, "Эта команда доступна только администратору бота.")
 		bot.Send(reply)
 		return
 	}
@@ -154,20 +157,20 @@ func handleQuestionsCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	questions, err := db.GetUnansweredUserQuestions(ctx)
 	if err != nil {
 		log.Printf("failed to load user questions: %v", err)
-		reply := tgbotapi.NewMessage(msg.Chat.ID, "Failed to load questions. Please try again later.")
+		reply := tgbotapi.NewMessage(msg.Chat.ID, "Не удалось загрузить вопросы. Попробуйте позже.")
 		bot.Send(reply)
 		return
 	}
 
 	if len(questions) == 0 {
-		reply := tgbotapi.NewMessage(msg.Chat.ID, "There are no unanswered questions.")
+		reply := tgbotapi.NewMessage(msg.Chat.ID, "Нет неотвеченных вопросов.")
 		bot.Send(reply)
 		return
 	}
 
 	for _, q := range questions {
-		text := fmt.Sprintf("Question:\n%s\n\nTelegram ID: %d", q.Message, q.TelegramID)
-		answerBtn := tgbotapi.NewInlineKeyboardButtonData("Answer", fmt.Sprintf("reply_to:%d", q.ID))
+		text := fmt.Sprintf("Вопрос:\n%s\n\nTelegram ID: %d", q.Message, q.TelegramID)
+		answerBtn := tgbotapi.NewInlineKeyboardButtonData("Ответить", fmt.Sprintf("reply_to:%d", q.ID))
 		markup := tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(answerBtn))
 		out := tgbotapi.NewMessage(msg.Chat.ID, text)
 		out.ReplyMarkup = markup
@@ -176,17 +179,17 @@ func handleQuestionsCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 }
 
 func handleSubstribeCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
-	text := "Choose a subscription plan:"
+	text := "Выберите тариф подписки:"
 
 	keyboard := tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("1 week test period", "plan_1week"),
+			tgbotapi.NewInlineKeyboardButtonData("Тест на 1 неделю", "plan_1week"),
 		),
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("1 month (249 rub)", "plan_1month"),
+			tgbotapi.NewInlineKeyboardButtonData("1 месяц (249 ₽)", "plan_1month"),
 		),
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("3 months (699 rub)", "plan_3months"),
+			tgbotapi.NewInlineKeyboardButtonData("3 месяца (699 ₽)", "plan_3months"),
 		),
 	)
 
@@ -197,7 +200,7 @@ func handleSubstribeCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 }
 
 func handleUnknownCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
-	reply := tgbotapi.NewMessage(msg.Chat.ID, "Unknown command. Try /start.")
+	reply := tgbotapi.NewMessage(msg.Chat.ID, "Неизвестная команда. Попробуйте /start.")
 	bot.Send(reply)
 }
 
@@ -216,7 +219,7 @@ func HandleState(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 		ids, err := db.GetAllVpnUserTelegramIDs(ctx)
 		if err != nil {
 			log.Printf("failed to get user IDs for broadcast: %v", err)
-			reply := tgbotapi.NewMessage(msg.Chat.ID, "Failed to load users. Please try again later.")
+			reply := tgbotapi.NewMessage(msg.Chat.ID, "Не удалось получить список пользователей для рассылки. Попробуйте позже.")
 			reply.ReplyMarkup = newMainReplyKeyboard(msg.From)
 			bot.Send(reply)
 			return
@@ -230,7 +233,7 @@ func HandleState(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 				sent++
 			}
 		}
-		reply := tgbotapi.NewMessage(msg.Chat.ID, fmt.Sprintf("Message sent to %d user(s). Failed: %d.", sent, failed))
+		reply := tgbotapi.NewMessage(msg.Chat.ID, fmt.Sprintf("Сообщение отправлено %d пользователям. Ошибок: %d.", sent, failed))
 		reply.ReplyMarkup = newMainReplyKeyboard(msg.From)
 		bot.Send(reply)
 		return
@@ -242,19 +245,19 @@ func HandleState(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 		q, err := db.GetUserQuestionByID(ctx, questionID)
 		if err != nil || q == nil {
 			log.Printf("get question %d: %v", questionID, err)
-			bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Failed to load question. Try again."))
+			bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Не удалось загрузить вопрос. Попробуйте ещё раз."))
 			return
 		}
 		if err := db.UpdateUserQuestionAnswer(ctx, questionID, msg.Text); err != nil {
 			log.Printf("update question answer: %v", err)
-			bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Failed to save answer. Try again."))
+			bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Не удалось сохранить ответ. Попробуйте ещё раз."))
 			return
 		}
-		outToUser := fmt.Sprintf("Your question:\n%s\n\nAnswer:\n%s", q.Message, msg.Text)
+		outToUser := fmt.Sprintf("Ваш вопрос:\n%s\n\nОтвет:\n%s", q.Message, msg.Text)
 		if _, err := bot.Send(tgbotapi.NewMessage(q.TelegramID, outToUser)); err != nil {
 			log.Printf("send answer to user %d: %v", q.TelegramID, err)
 		}
-		reply := tgbotapi.NewMessage(msg.Chat.ID, "Answer sent to the user and saved.")
+		reply := tgbotapi.NewMessage(msg.Chat.ID, "Ответ отправлен пользователю и сохранён.")
 		reply.ReplyMarkup = newMainReplyKeyboard(msg.From)
 		if _, err := bot.Send(reply); err != nil {
 			log.Printf("failed to send answer confirmation to admin: %v", err)
@@ -268,9 +271,9 @@ func HandleState(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 		msgTime := time.Unix(int64(msg.Date), 0)
 		if err := db.InsertUserQuestion(ctx, int64(msg.From.ID), msg.Text, msgTime); err != nil {
 			log.Printf("failed to save user question: %v", err)
-			bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Sorry, we couldn't save your question. Please try again later."))
+			bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Не удалось сохранить ваш вопрос. Пожалуйста, попробуйте позже."))
 		} else {
-			reply := tgbotapi.NewMessage(msg.Chat.ID, "Your question has been saved. We'll get back to you soon.")
+			reply := tgbotapi.NewMessage(msg.Chat.ID, "Ваш вопрос сохранён. Мы ответим вам в ближайшее время.")
 			reply.ReplyMarkup = newMainReplyKeyboard(msg.From)
 			bot.Send(reply)
 		}
@@ -294,8 +297,8 @@ func HandleStartReplyToUser(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQue
 		return
 	}
 	SetAwaitingAnswer(callback.Message.Chat.ID, questionID)
-	keyboard := tgbotapi.NewReplyKeyboard(tgbotapi.NewKeyboardButtonRow(tgbotapi.NewKeyboardButton("Cancel")))
-	reply := tgbotapi.NewMessage(callback.Message.Chat.ID, "Write your answer and send it, or tap Cancel to cancel.")
+	keyboard := tgbotapi.NewReplyKeyboard(tgbotapi.NewKeyboardButtonRow(tgbotapi.NewKeyboardButton("Отмена")))
+	reply := tgbotapi.NewMessage(callback.Message.Chat.ID, "Напишите ответ и отправьте его, или нажмите «Отмена», чтобы прервать.")
 	reply.ReplyMarkup = keyboard
 	bot.Send(reply)
 }
@@ -306,7 +309,7 @@ func HandleCancelReplyCallback(bot *tgbotapi.BotAPI, callback *tgbotapi.Callback
 		log.Printf("answer callback: %v", err)
 	}
 	ClearAwaitingAnswer(callback.Message.Chat.ID)
-	bot.Send(tgbotapi.NewMessage(callback.Message.Chat.ID, "Answer cancelled."))
+	bot.Send(tgbotapi.NewMessage(callback.Message.Chat.ID, "Ответ отменён."))
 }
 
 // resolveUserAndLink resolves username from msg, loads or creates VPN user, and returns account link.
@@ -322,7 +325,7 @@ func resolveUserAndLink(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) (ctx contex
 	user, err := db.GetVpnUserByUsername(ctx, username)
 	if err != nil {
 		log.Printf("failed to get vpn user: %v", err)
-		bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Sorry, something went wrong. Please try again later."))
+		bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Произошла ошибка. Пожалуйста, попробуйте позже."))
 		return ctx, telegramID, username, "", false
 	}
 
@@ -330,7 +333,7 @@ func resolveUserAndLink(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) (ctx contex
 		link = api.GenerateAccountLink(username, telegramID)
 		if err := db.CreateVpnUser(ctx, username, telegramID, link, false); err != nil {
 			log.Printf("failed to create vpn user: %v", err)
-			bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Sorry, something went wrong while creating your account."))
+			bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Произошла ошибка при создании аккаунта. Пожалуйста, попробуйте позже."))
 			return ctx, telegramID, username, "", false
 		}
 	} else {
@@ -338,4 +341,3 @@ func resolveUserAndLink(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) (ctx contex
 	}
 	return ctx, telegramID, username, link, true
 }
-

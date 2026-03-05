@@ -113,7 +113,7 @@ func checkInvoices(bot *tgbotapi.BotAPI) {
 		// Apply subscription in Remnawave based on plan and Telegram ID.
 		if err := api.Subscribe(ctx, telegramID, plan); err != nil {
 			log.Printf("scheduler: subscribe %s failed for tg %d: %v", plan, telegramID, err)
-			failMsg := tgbotapi.NewMessage(telegramID, "Payment received but activation failed: "+err.Error()+". Contact support.")
+			failMsg := tgbotapi.NewMessage(telegramID, "Платёж получен, но не удалось активировать подписку: "+err.Error()+". Свяжитесь с поддержкой.")
 			if _, sendErr := bot.Send(failMsg); sendErr != nil {
 				log.Printf("scheduler: send activation failed msg to %d: %v", telegramID, sendErr)
 			}
@@ -122,7 +122,16 @@ func checkInvoices(bot *tgbotapi.BotAPI) {
 		}
 
 		// Notify user that subscription is applied.
-		msg := tgbotapi.NewMessage(telegramID, "Subscription "+plan+" is paid")
+		var text string
+		switch plan {
+		case "1month":
+			text = "Подписка на 1 месяц оплачена."
+		case "3months":
+			text = "Подписка на 3 месяца оплачена."
+		default:
+			text = "Подписка " + plan + " оплачена."
+		}
+		msg := tgbotapi.NewMessage(telegramID, text)
 		if _, err := bot.Send(msg); err != nil {
 			log.Printf("scheduler: send telegram to %d: %v", telegramID, err)
 		}
@@ -132,4 +141,3 @@ func checkInvoices(bot *tgbotapi.BotAPI) {
 		}
 	}
 }
-

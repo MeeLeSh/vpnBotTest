@@ -21,13 +21,13 @@ func HandlePlanChoice(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery, pl
 
 	keyboard := tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("Pay Telegram Stars", "pay_stars_"+plan),
+			tgbotapi.NewInlineKeyboardButtonData("Оплатить Telegram Stars", "pay_stars_"+plan),
 		),
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("Pay crypto", "pay_crypto_"+plan),
+			tgbotapi.NewInlineKeyboardButtonData("Оплатить криптовалютой", "pay_crypto_"+plan),
 		),
 	)
-	reply := tgbotapi.NewMessage(callback.Message.Chat.ID, "Choose payment method:")
+	reply := tgbotapi.NewMessage(callback.Message.Chat.ID, "Выберите способ оплаты:")
 	reply.ReplyMarkup = keyboard
 	bot.Send(reply)
 }
@@ -35,18 +35,18 @@ func HandlePlanChoice(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery, pl
 func HandlePayCryptoPlan1Month(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery) {
 	handlePayCryptoPlan(bot, callback,
 		"249",
-		"VPN subscription — 1 month",
+		"Подписка VPN — 1 месяц",
 		"1month",
-		"Pay for 1 month subscription (249 ₽):\n",
+		"Оплатите подписку на 1 месяц (249 ₽):\n",
 	)
 }
 
 func HandlePayCryptoPlan3Months(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery) {
 	handlePayCryptoPlan(bot, callback,
 		"699",
-		"VPN subscription — 3 months",
+		"Подписка VPN — 3 месяца",
 		"3months",
-		"Pay for 3 months subscription (699 ₽):\n",
+		"Оплатите подписку на 3 месяца (699 ₽):\n",
 	)
 }
 
@@ -63,17 +63,17 @@ func handlePayCryptoPlan(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery,
 		Fiat:          "RUB",
 		Amount:        amount,
 		Description:   description,
-		HiddenMessage: "Subscription is paid successfully",
+		HiddenMessage: "Подписка успешно оплачена",
 		Payload:       fmt.Sprintf("plan:%s(tg_id=%d,username=%s)", plan, callback.From.ID, callback.From.UserName),
 	})
 
 	if err != nil {
 		log.Printf("crypto createInvoice: %v", err)
-		bot.Send(tgbotapi.NewMessage(callback.Message.Chat.ID, "Failed to create crypto invoice. Please try again later."))
+		bot.Send(tgbotapi.NewMessage(callback.Message.Chat.ID, "Не удалось создать крипто‑счёт. Попробуйте позже."))
 		return
 	}
 	if inv == nil {
-		bot.Send(tgbotapi.NewMessage(callback.Message.Chat.ID, "Crypto payment is not configured. Contact support."))
+		bot.Send(tgbotapi.NewMessage(callback.Message.Chat.ID, "Оплата криптовалютой не настроена. Свяжитесь с поддержкой."))
 		return
 	}
 
@@ -102,13 +102,13 @@ func HandleSub1WeekTest(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery) 
 	user, err := db.GetVpnUserByUsername(ctx, username)
 	if err != nil {
 		log.Printf("failed to get vpn user for test period: %v", err)
-		msg := tgbotapi.NewMessage(callback.Message.Chat.ID, "Something went wrong. Please try again later.")
+		msg := tgbotapi.NewMessage(callback.Message.Chat.ID, "Произошла ошибка. Пожалуйста, попробуйте позже.")
 		bot.Send(msg)
 		return
 	}
 
 	if user != nil && user.IsUsedTestPeriod {
-		msg := tgbotapi.NewMessage(callback.Message.Chat.ID, "you already used test period")
+		msg := tgbotapi.NewMessage(callback.Message.Chat.ID, "Вы уже использовали тестовый период.")
 		bot.Send(msg)
 		return
 	}
@@ -116,10 +116,10 @@ func HandleSub1WeekTest(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery) 
 	// apply test period
 	if err := api.Subscribe(ctx, telegramID, "1week_test"); err != nil {
 		log.Printf("subscribe 1week_test failed for %s: %v", username, err)
-		bot.Send(tgbotapi.NewMessage(callback.Message.Chat.ID, "Failed: "+err.Error()))
+		bot.Send(tgbotapi.NewMessage(callback.Message.Chat.ID, "Ошибка активации тестового периода: "+err.Error()))
 		return
 	}
-	msg := tgbotapi.NewMessage(callback.Message.Chat.ID, "1 week test period is applied")
+	msg := tgbotapi.NewMessage(callback.Message.Chat.ID, "Тестовый период на 1 неделю активирован.")
 	bot.Send(msg)
 
 	// mark test period as used
@@ -133,7 +133,7 @@ func HandlePayStarsPlan1Month(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQ
 	if _, err := bot.Request(answer); err != nil {
 		log.Printf("failed to answer callback: %v", err)
 	}
-	sendStarsInvoice(bot, callback.Message.Chat.ID, "1 month", "VPN subscription for 1 month", "1 month", "plan:1month", config.AppConfig.Stars1Month)
+	sendStarsInvoice(bot, callback.Message.Chat.ID, "Подписка на 1 месяц", "Подписка VPN на 1 месяц", "1 месяц", "plan:1month", config.AppConfig.Stars1Month)
 }
 
 func HandlePayStarsPlan3Months(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery) {
@@ -141,7 +141,7 @@ func HandlePayStarsPlan3Months(bot *tgbotapi.BotAPI, callback *tgbotapi.Callback
 	if _, err := bot.Request(answer); err != nil {
 		log.Printf("failed to answer callback: %v", err)
 	}
-	sendStarsInvoice(bot, callback.Message.Chat.ID, "3 months", "VPN subscription for 3 months", "3 months", "plan:3months", config.AppConfig.Stars3Months)
+	sendStarsInvoice(bot, callback.Message.Chat.ID, "Подписка на 3 месяца", "Подписка VPN на 3 месяца", "3 месяца", "plan:3months", config.AppConfig.Stars3Months)
 }
 
 // sendStarsInvoice sends a Telegram Stars (XTR) invoice. providerToken empty for digital goods.
@@ -152,7 +152,7 @@ func sendStarsInvoice(bot *tgbotapi.BotAPI, chatID int64, title, description, pr
 	invoice.SuggestedTipAmounts = []int{} // required for Stars: must be an array (empty = no tips)
 	if _, err := bot.Send(invoice); err != nil {
 		log.Printf("sendInvoice failed: %v", err)
-		bot.Send(tgbotapi.NewMessage(chatID, "Failed to create payment. Please try again later."))
+		bot.Send(tgbotapi.NewMessage(chatID, "Не удалось создать платёж. Пожалуйста, попробуйте позже."))
 	}
 }
 
@@ -175,7 +175,7 @@ func HandleSuccessfulStarsPayment(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 		plan = "3months"
 	default:
 		log.Printf("unknown payment payload: %s", payload)
-		bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Unknown plan. Contact support."))
+		bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Неизвестный тариф. Свяжитесь с поддержкой."))
 		return
 	}
 
@@ -188,16 +188,17 @@ func HandleSuccessfulStarsPayment(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 
 	if err := api.Subscribe(ctx, telegramID, plan); err != nil {
 		log.Printf("subscribe %s after payment failed for %s: %v", plan, username, err)
-		bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Payment received but activation failed: "+err.Error()+". Contact support."))
+		bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Платёж получен, но не удалось активировать подписку: "+err.Error()+". Свяжитесь с поддержкой."))
 		return
 	}
 
-	text := "Payment successful. Subscription is active."
+	var text string
 	if plan == "1month" {
-		text = "Subscription 1 month is applied."
+		text = "Подписка на 1 месяц активирована."
+	} else if plan == "3months" {
+		text = "Подписка на 3 месяца активирована."
 	} else {
-		text = "Subscription 3 months is applied."
+		text = "Подписка активирована."
 	}
 	bot.Send(tgbotapi.NewMessage(msg.Chat.ID, text))
 }
-

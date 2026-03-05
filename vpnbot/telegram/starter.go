@@ -89,19 +89,19 @@ func Run() {
 
 		// Map button labels to commands
 		switch update.Message.Text {
-		case "Guide":
+		case "Инструкция":
 			update.Message.Text = "/instruction"
-		case "Profile":
+		case "Профиль":
 			update.Message.Text = "/account"
-		case "Subscription":
+		case "Подписка":
 			update.Message.Text = "/substribe"
-		case "Help":
+		case "Помощь":
 			update.Message.Text = "/help"
-		case "Questions":
+		case "Вопросы":
 			update.Message.Text = "/questions"
-		case "Send to all":
+		case "Рассылка":
 			update.Message.Text = "/broadcast"
-		case "Cancel":
+		case "Отмена":
 			update.Message.Text = "/cancel"
 		}
 
@@ -114,4 +114,3 @@ func Run() {
 		HandleState(bot, update.Message)
 	}
 }
-
