@@ -73,7 +73,7 @@ func GetAllVpnUserTelegramIDs(ctx context.Context) ([]int64, error) {
 }
 
 func GetVpnUserByUsername(ctx context.Context, username string) (*VpnUser, error) {
-	const query = `SELECT username, telegramId, accountDetailsLink, isUsedTestPeriod FROM "VpnUser" WHERE username = $1`
+	const query = `SELECT username, telegramId, accountDetailsLink, isusedtestperiod FROM "VpnUser" WHERE username = $1`
 
 	row := pool.QueryRow(ctx, query, username)
 
@@ -89,13 +89,13 @@ func GetVpnUserByUsername(ctx context.Context, username string) (*VpnUser, error
 }
 
 func CreateVpnUser(ctx context.Context, username string, telegramID int64, accountLink string, isUsedTestPeriod bool) error {
-	const query = `INSERT INTO "VpnUser" (username, telegramId, accountDetailsLink, isUsedTestPeriod) VALUES ($1, $2, $3, $4)`
+	const query = `INSERT INTO "VpnUser" (username, telegramId, accountDetailsLink, isusedtestperiod) VALUES ($1, $2, $3, $4)`
 	_, err := pool.Exec(ctx, query, username, telegramID, accountLink, isUsedTestPeriod)
 	return err
 }
 
 func MarkTestPeriodUsed(ctx context.Context, username string) error {
-	const query = `UPDATE "VpnUser" SET isUsedTestPeriod = TRUE WHERE username = $1`
+	const query = `UPDATE "VpnUser" SET isusedtestperiod = TRUE WHERE username = $1`
 	_, err := pool.Exec(ctx, query, username)
 	return err
 }

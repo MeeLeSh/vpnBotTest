@@ -16,7 +16,7 @@ services:
       interval: 2s
       timeout: 5s
       retries: 10
-      start_period: 5s
+      start_period: 10s
 
   vpnbot:
     build:
@@ -27,12 +27,12 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      TELEGRAM_BOT_TOKEN: 
+      TELEGRAM_BOT_TOKEN:
       DATABASE_URL: postgres://vpn_user:vpn_password@postgres:5432/vpn_db?sslmode=disable
-      REMNAWAVE_PANEL_URL: 
-      REMNAWAVE_API_TOKEN: 
+      REMNAWAVE_PANEL_URL:
+      REMNAWAVE_API_TOKEN:
       REMNAWAVE_SQUAD_ID: 
       CRYPTO_PAY_API_TOKEN: 
       CRYPTO_PAY_TESTNET: 
-      TELEGRAM_ADMIN_ID: 
-      GUIDE_TEXT:
+      TELEGRAM_ADMIN_ID:
+      GUIDE_TEXT: 
