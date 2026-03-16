@@ -52,7 +52,7 @@ func Close() {
 
 // GetAllVpnUserTelegramIDs returns all distinct Telegram user IDs from VpnUser (for broadcast).
 func GetAllVpnUserTelegramIDs(ctx context.Context) ([]int64, error) {
-	const query = `SELECT DISTINCT "telegramid" FROM "VpnUser"`
+	const query = `SELECT DISTINCT "telegramived" FROM "VpnUser"`
 	rows, err := pool.Query(ctx, query)
 	if err != nil {
 		return nil, err

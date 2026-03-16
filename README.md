@@ -4,30 +4,15 @@ Simple Telegram bot written in Go that manages VPN user accounts and stores acco
 
 ## Prerequisites
 
-- Go 1.21+
+- Go 1.26+
 - Docker & Docker Compose
 - Telegram bot token from BotFather
 
 ## 1. Clone / open the project
 
-Make sure you are in the project folder:
+Go to the `vpnBot` project directory (for example using your file explorer, or with a `cd` command to the appropriate path).
 
-```bash
-cd m:\programming\projects\customers\vpnBot
-```
-
-## 2. Start PostgreSQL in Docker
-
-This starts Postgres.
-Database schema is managed by Go migrations in the `migrations/` folder and is applied automatically on app startup.
-
-```bash
-docker compose up -d
-```
-
-You only need to recreate containers if you change the Docker setup or wipe volumes.
-
-## 3. Set environment variables
+## 2. Set environment variables
 
 In a terminal where you will run the bot (PowerShell examples):
 
@@ -54,7 +39,7 @@ $env:GUIDE_TEXT           = "Вот что нужно сделать:\n\n1. Ша
 
 You can also make them permanent using `setx`, but for development the per-session variables are usually enough.
 
-## 4. Install Go dependencies
+## 3. Install Go dependencies
 
 From the project root:
 
@@ -64,7 +49,17 @@ go mod tidy
 
 This downloads all required Go modules (Telegram API client, pgx, etc.).
 
-## 5. Run the bot
+## 4. Run the bot
+
+You can run the bot either directly with Go or via Docker Compose.
+
+### Option A: Run with Go (local)
+
+First, start PostgreSQL (for example, using Docker Compose):
+
+```bash
+docker compose up -d postgres
+```
 
 The entrypoint is in `cmd/vpnbot/main.go`. From the project root:
 
@@ -88,6 +83,20 @@ Authorized on account <bot_username>
 
 The bot is now running and listening for messages.
 
+### Option B: Run bot + Postgres with Docker Compose
+
+From the project root (with required environment variables set in the shell or a `.env` file):
+
+```bash
+docker compose up -d
+```
+
+This will:
+
+- start PostgreSQL (`postgres` service),
+- build the Go bot image from the `Dockerfile`,
+- start the `vpnbot` service after Postgres.
+
 ### (Optional) Build a binary
 
 From the project root:
@@ -97,7 +106,7 @@ go build -o vpnbot.exe ./cmd/vpnbot
 .\vpnbot.exe
 ```
 
-## 6. Available commands
+## 5. Available commands
 
 You can type commands or use the reply keyboard buttons after `/start`.
 
@@ -128,7 +137,7 @@ On subscribe (test or paid), the bot in Remnawave: extends the user's expiry, se
 - **Admin:** Press **Вопросы** → bot sends only **unanswered** questions. Each block has question text, Telegram ID, and an **Ответить** button.
 - **Admin answers:** Tap **Ответить** → bot asks to type the answer and shows **Отмена**. Admin sends a message → it is **stored in the DB** (`UserQuestion.answer`) and sent back to the user together with their original question; the question disappears from the unanswered list. Or tap **Отмена** to abort.
 
-## 7. Stopping the services
+## 6. Stopping the services
 
 To stop the Postgres container:
 

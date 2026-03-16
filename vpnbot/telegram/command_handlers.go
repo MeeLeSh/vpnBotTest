@@ -104,6 +104,7 @@ func handleCancelCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 }
 
 func handleInstructionCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
+	text := ""
 	if config.AppConfig != nil && config.AppConfig.GuideText != "" {
 		text = config.AppConfig.GuideText
 		// Treat literal \n in env as newline (shells often don't expand escape sequences).

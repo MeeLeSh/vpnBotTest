@@ -8,9 +8,31 @@ services:
       POSTGRES_DB: vpn_db
       POSTGRES_USER: vpn_user
       POSTGRES_PASSWORD: vpn_password
-    ports:
-      - "5433:5432"
     volumes:
       - ./docker/postgres/data:/var/lib/postgresql/data
       - ./docker/postgres/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vpn_user -d vpn_db"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
 
+  vpnbot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vpn-bot
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      TELEGRAM_BOT_TOKEN: 8728404030:AAEzMd2RKd3-MIbY8W45jnMjPgh25aBFGrs
+      DATABASE_URL: postgres://vpn_user:vpn_password@postgres:5432/vpn_db?sslmode=disable
+      REMNAWAVE_PANEL_URL: https://panel.openrepresent.com
+      REMNAWAVE_API_TOKEN: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1dWlkIjoiYjNlZTYyNzQtYjEwYS00OTU4LThlZjItNmVmMDgyZjNmM2UzIiwidXNlcm5hbWUiOm51bGwsInJvbGUiOiJBUEkiLCJpYXQiOjE3NzIyMjA5MzEsImV4cCI6MTA0MTIxMzQ1MzF9.B-vl45Le36bdR3XBndzqWPyYZoFMjS39KrrNBnM9D2I
+      REMNAWAVE_SQUAD_ID: 848fc18e-b2a7-49ee-b409-8adada9f3160
+      CRYPTO_PAY_API_TOKEN: 55155:AAKRdMiuC0yiCBtmchQhD5GsTRkIKrYywYV
+      CRYPTO_PAY_TESTNET: 1
+      TELEGRAM_ADMIN_ID: 5005319838
+      GUIDE_TEXT: Hello world
