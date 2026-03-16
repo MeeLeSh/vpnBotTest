@@ -27,12 +27,12 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      TELEGRAM_BOT_TOKEN: 8728404030:AAEzMd2RKd3-MIbY8W45jnMjPgh25aBFGrs
+      TELEGRAM_BOT_TOKEN: 
       DATABASE_URL: postgres://vpn_user:vpn_password@postgres:5432/vpn_db?sslmode=disable
-      REMNAWAVE_PANEL_URL: https://panel.openrepresent.com
-      REMNAWAVE_API_TOKEN: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1dWlkIjoiYjNlZTYyNzQtYjEwYS00OTU4LThlZjItNmVmMDgyZjNmM2UzIiwidXNlcm5hbWUiOm51bGwsInJvbGUiOiJBUEkiLCJpYXQiOjE3NzIyMjA5MzEsImV4cCI6MTA0MTIxMzQ1MzF9.B-vl45Le36bdR3XBndzqWPyYZoFMjS39KrrNBnM9D2I
-      REMNAWAVE_SQUAD_ID: 848fc18e-b2a7-49ee-b409-8adada9f3160
-      CRYPTO_PAY_API_TOKEN: 55155:AAKRdMiuC0yiCBtmchQhD5GsTRkIKrYywYV
-      CRYPTO_PAY_TESTNET: 1
-      TELEGRAM_ADMIN_ID: 5005319838
-      GUIDE_TEXT: Hello world
+      REMNAWAVE_PANEL_URL: 
+      REMNAWAVE_API_TOKEN: 
+      REMNAWAVE_SQUAD_ID: 
+      CRYPTO_PAY_API_TOKEN:
+      CRYPTO_PAY_TESTNET:
+      TELEGRAM_ADMIN_ID: 
+      GUIDE_TEXT: 
