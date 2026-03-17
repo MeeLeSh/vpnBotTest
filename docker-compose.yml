@@ -36,3 +36,5 @@ services:
       CRYPTO_PAY_TESTNET: 
       TELEGRAM_ADMIN_ID:
       GUIDE_TEXT: 
+      STARS_1_MONTH:
+      STARS_3_MONTHS:
