@@ -30,6 +30,9 @@ $env:TELEGRAM_ADMIN_ID    = "123456789"                   # optional: numeric Te
 # Optional: text sent when user taps «Инструкция»
 # Use \n for newlines; the bot converts them to real line breaks.
 $env:GUIDE_TEXT           = "Вот что нужно сделать:\n\n1. Шаг первый.\n2. Шаг второй.\n3. Шаг третий."
+# Optional: Telegram Stars prices (positive integers)
+$env:STARS_1_MONTH        = "1"
+$env:STARS_3_MONTHS       = "3"
 ```
 
 **How to get `CRYPTO_PAY_API_TOKEN`:**

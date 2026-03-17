@@ -52,7 +52,7 @@ func Close() {
 
 // GetAllVpnUserTelegramIDs returns all distinct Telegram user IDs from VpnUser (for broadcast).
 func GetAllVpnUserTelegramIDs(ctx context.Context) ([]int64, error) {
-	const query = `SELECT DISTINCT "telegramived" FROM "VpnUser"`
+	const query = `SELECT DISTINCT telegramId FROM "VpnUser"`
 	rows, err := pool.Query(ctx, query)
 	if err != nil {
 		return nil, err
@@ -88,10 +88,24 @@ func GetVpnUserByUsername(ctx context.Context, username string) (*VpnUser, error
 	return &u, nil
 }
 
-func CreateVpnUser(ctx context.Context, username string, telegramID int64, accountLink string, isUsedTestPeriod bool) error {
-	const query = `INSERT INTO "VpnUser" (username, telegramId, accountDetailsLink, isusedtestperiod) VALUES ($1, $2, $3, $4)`
-	_, err := pool.Exec(ctx, query, username, telegramID, accountLink, isUsedTestPeriod)
-	return err
+func CreateVpnUser(ctx context.Context, username string, telegramID int64, accountLink string, isUsedTestPeriod bool) (*VpnUser, error) {
+	const query = `
+INSERT INTO "VpnUser" (username, telegramId, accountDetailsLink, isusedtestperiod)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (username) DO UPDATE
+SET
+  telegramId = "VpnUser".telegramId,
+  accountDetailsLink = "VpnUser".accountDetailsLink,
+  isusedtestperiod = "VpnUser".isusedtestperiod
+RETURNING username, telegramId, accountDetailsLink, isusedtestperiod
+`
+
+	var u VpnUser
+	if err := pool.QueryRow(ctx, query, username, telegramID, accountLink, isUsedTestPeriod).
+		Scan(&u.Username, &u.TelegramID, &u.AccountDetailsLink, &u.IsUsedTestPeriod); err != nil {
+		return nil, err
+	}
+	return &u, nil
 }
 
 func MarkTestPeriodUsed(ctx context.Context, username string) error {
@@ -126,7 +140,7 @@ func GetQueuedInvoiceIDs(ctx context.Context) ([]int64, error) {
 
 // InsertInvoiceStatus saves a crypto invoice record to "invoice_queue" (id, invoice_id, telegramId, payload).
 func InsertInvoiceStatus(ctx context.Context, invoiceID int64, telegramID int64, payload string) error {
-	const query = `INSERT INTO "invoice_queue" (invoice_id, "telegramId", payload) VALUES ($1, $2, $3)`
+	const query = `INSERT INTO "invoice_queue" (invoice_id, telegramId, payload) VALUES ($1, $2, $3)`
 	_, err := pool.Exec(ctx, query, invoiceID, telegramID, payload)
 	return err
 }
@@ -140,14 +154,14 @@ func DeleteInvoiceStatusByInvoiceID(ctx context.Context, invoiceID int64) error 
 
 // InsertUserQuestion saves a user question to "UserQuestion" (telegramId, message, messageDate).
 func InsertUserQuestion(ctx context.Context, telegramID int64, message string, messageDate time.Time) error {
-	const query = `INSERT INTO "UserQuestion" ("telegramId", message, "messageDate") VALUES ($1, $2, $3)`
+	const query = `INSERT INTO "UserQuestion" (telegramId, message, messageDate) VALUES ($1, $2, $3)`
 	_, err := pool.Exec(ctx, query, telegramID, message, messageDate)
 	return err
 }
 
 // GetAllUserQuestions returns all stored user questions ordered by most recent first.
 func GetAllUserQuestions(ctx context.Context) ([]UserQuestion, error) {
-	const query = `SELECT id, "telegramId", message, "messageDate", COALESCE(answer, '') FROM "UserQuestion" ORDER BY "messageDate" DESC`
+	const query = `SELECT id, telegramId, message, messageDate, COALESCE(answer, '') FROM "UserQuestion" ORDER BY messageDate DESC`
 
 	rows, err := pool.Query(ctx, query)
 	if err != nil {
@@ -171,7 +185,7 @@ func GetAllUserQuestions(ctx context.Context) ([]UserQuestion, error) {
 
 // GetUnansweredUserQuestions returns questions where answer is null or empty, ordered by most recent first.
 func GetUnansweredUserQuestions(ctx context.Context) ([]UserQuestion, error) {
-	const query = `SELECT id, "telegramId", message, "messageDate", COALESCE(answer, '') FROM "UserQuestion" WHERE (answer IS NULL OR TRIM(answer) = '') ORDER BY "messageDate" DESC`
+	const query = `SELECT id, telegramId, message, messageDate, COALESCE(answer, '') FROM "UserQuestion" WHERE (answer IS NULL OR TRIM(answer) = '') ORDER BY messageDate DESC`
 
 	rows, err := pool.Query(ctx, query)
 	if err != nil {
@@ -195,7 +209,7 @@ func GetUnansweredUserQuestions(ctx context.Context) ([]UserQuestion, error) {
 
 // GetUserQuestionByID returns a single user question by its ID.
 func GetUserQuestionByID(ctx context.Context, id int64) (*UserQuestion, error) {
-	const query = `SELECT id, "telegramId", message, "messageDate", COALESCE(answer, '') FROM "UserQuestion" WHERE id = $1`
+	const query = `SELECT id, telegramId, message, messageDate, COALESCE(answer, '') FROM "UserQuestion" WHERE id = $1`
 	row := pool.QueryRow(ctx, query, id)
 	var q UserQuestion
 	if err := row.Scan(&q.ID, &q.TelegramID, &q.Message, &q.MessageDate, &q.Answer); err != nil {

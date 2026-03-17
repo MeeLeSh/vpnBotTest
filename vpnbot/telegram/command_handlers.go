@@ -332,7 +332,7 @@ func resolveUserAndLink(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) (ctx contex
 
 	if user == nil || user.AccountDetailsLink == "" {
 		link = api.GenerateAccountLink(username, telegramID)
-		if err := db.CreateVpnUser(ctx, username, telegramID, link, false); err != nil {
+		if _, err := db.CreateVpnUser(ctx, username, telegramID, link, false); err != nil {
 			log.Printf("failed to create vpn user: %v", err)
 			bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Произошла ошибка при создании аккаунта. Пожалуйста, попробуйте позже."))
 			return ctx, telegramID, username, "", false
