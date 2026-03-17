@@ -27,15 +27,12 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      TELEGRAM_BOT_TOKEN: 8728404030:AAFEy3ziOh6Psu7e13-WB1BR2jsKpzmoQh4
+      TELEGRAM_BOT_TOKEN:
       DATABASE_URL: postgres://vpn_user:vpn_password@postgres:5432/vpn_db?sslmode=disable
-      REMNAWAVE_PANEL_URL: https://panel.vynex.one
-      REMNAWAVE_API_TOKEN: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1dWlkIjoiYjk4NzJiZTMtMmNiZi00YzNkLWI4OGUtOGU4YWUyNmExM2YyIiwidXNlcm5hbWUiOm51bGwsInJvbGUiOiJBUEkiLCJpYXQiOjE3NzM0OTYzNjcsImV4cCI6MTA0MTM0MDk5Njd9.B9_knPEgpNhfRjzF02SK0xtp1rf1S6yBBCzXXMYfBGY
-      REMNAWAVE_SQUAD_ID: 850f9a30-27a6-4404-8831-1148ca91231b
-      CRYPTO_PAY_API_TOKEN: 55155:AA68UjKSGn6IDjS67hbfhhz9RHGAGYzUlD2
-      CRYPTO_PAY_TESTNET: 1
-      TELEGRAM_ADMIN_ID: 5005319838
-      GUIDE_TEXT: asdsad
-      # Optional: Telegram Stars prices (positive integers)
-      STARS_1_MONTH: 1
-      STARS_3_MONTHS: 3
+      REMNAWAVE_PANEL_URL:
+      REMNAWAVE_API_TOKEN:
+      REMNAWAVE_SQUAD_ID: 
+      CRYPTO_PAY_API_TOKEN: 
+      CRYPTO_PAY_TESTNET: 
+      TELEGRAM_ADMIN_ID:
+      GUIDE_TEXT: 
